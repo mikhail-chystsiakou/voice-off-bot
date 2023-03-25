@@ -1,5 +1,8 @@
-package org.example;
+package org.example.bot;
 
+import org.example.config.BotConfig;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
@@ -7,19 +10,17 @@ import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.IOException;
-import java.util.Properties;
 
+@Component
 public class MyTelegramBot extends TelegramLongPollingBot {
 
     // Replace with your bot token
+
     private static String BOT_TOKEN;
 
-    public MyTelegramBot() throws IOException {
-        Properties secretProperties = new Properties();
-        secretProperties.load(
-                ClassLoader.getSystemClassLoader().getResourceAsStream("secrets.properties")
-        );
-        BOT_TOKEN = secretProperties.getProperty("TG_BOT_TOKEN");
+    @Autowired
+    public MyTelegramBot(BotConfig botConfig) throws IOException {
+        BOT_TOKEN = botConfig.getToken();
     }
 
     @Override
@@ -28,6 +29,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             Message message = update.getMessage();
             Voice inputVoice = message.getVoice();
             String chatId = message.getChatId().toString();
+
 
             // Download the voice message
             String fileId = inputVoice.getFileId();
