@@ -1,12 +1,16 @@
 package org.example.bot;
 
+import javafx.util.Pair;
+import lombok.SneakyThrows;
 import org.example.config.BotConfig;
+import org.example.service.UpdateHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.IOException;
@@ -14,43 +18,41 @@ import java.io.IOException;
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
 
-    // Replace with your bot token
-
     private static String BOT_TOKEN;
+    UpdateHandler updateHandler;
 
     @Autowired
-    public MyTelegramBot(BotConfig botConfig) throws IOException {
+    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler){
         BOT_TOKEN = botConfig.getToken();
+        this.updateHandler = updateHandler;
     }
 
+    @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasVoice()) {
+        if (update.hasMessage()) {
             Message message = update.getMessage();
-            Voice inputVoice = message.getVoice();
-            String chatId = message.getChatId().toString();
-
-
-            // Download the voice message
-            String fileId = inputVoice.getFileId();
-//            String filePath = downloadVoiceMessage(fileId);
-
-            // Send the voice message back to the user
-            try {
-                SendVoice voice = new SendVoice();
-                InputFile inputFile = new InputFile(fileId);
-                voice.setChatId(chatId);
-                voice.setVoice(inputFile);
-                execute(voice);
-
-                // Send a text message to confirm receipt of voice message
-                SendMessage reply = new SendMessage();
-                reply.setChatId(chatId);
-                reply.setText("Your message: " + inputVoice.getFileId());
+            if (message.hasVoice()){
+                SendVoice reply = updateHandler.handleVoiceMessage(message);
                 execute(reply);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
             }
+            if (message.hasText()){
+                SendMessage reply = updateHandler.handleText(message);
+                execute(reply);
+            }
+            if (message.hasContact()){
+                Pair<SendMessage, SendMessage> reply = updateHandler.handleContact(message);
+                execute(reply.getKey());
+                if (reply.getValue() != null)
+                {
+                    execute(reply.getValue());
+                }
+            }
+        }
+        if (update.hasCallbackQuery()){
+            Pair<SendMessage, SendMessage> sendMessage = updateHandler.handleConfirmation(update.getCallbackQuery());
+            execute(sendMessage.getKey());
+            execute(sendMessage.getValue());
         }
     }
 
