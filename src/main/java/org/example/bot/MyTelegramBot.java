@@ -1,9 +1,10 @@
 package org.example.bot;
 
-import javafx.util.Pair;
+import org.example.util.Pair;
 import lombok.SneakyThrows;
 import org.example.config.BotConfig;
 import org.example.service.UpdateHandler;
+import org.postgresql.core.Tuple;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -22,7 +23,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     UpdateHandler updateHandler;
 
     @Autowired
-    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler){
+    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) {
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
     }

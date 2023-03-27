@@ -1,6 +1,6 @@
 package org.example.service;
 
-import javafx.util.Pair;
+import org.example.util.Pair;
 import org.example.enums.CommandOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
