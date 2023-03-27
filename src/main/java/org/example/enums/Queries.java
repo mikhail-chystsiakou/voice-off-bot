@@ -9,7 +9,8 @@ public enum Queries
     CHECK_FOLLOWING("SELECT COUNT(*) FROM user_subscription WHERE user_id = ? and folowee_id = ?"),
     GET_CHAT_ID_BY_USER_ID("SELECT chat_id FROM users where user_id = ?"),
     ADD_REQUEST_TO_CONFIRM("INSERT INTO folow_requests(user_id, folowee_id) VALUES(?, ?) ON CONFLICT DO NOTHING"),
-    GET_USER_ID_BY_FOLOWEE_ID("SELECT user_id FROM folow_requests where folowee_id = ?");
+    GET_USER_ID_BY_FOLOWEE_ID("SELECT user_id FROM folow_requests where folowee_id = ?"),
+    REMOVE_REQUEST_TO_CONFIRM("DELETE FROM folow_requests where user_id = ? and folowee_id = ?");
 
     String value;
 

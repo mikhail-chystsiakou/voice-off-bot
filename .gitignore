@@ -1,6 +1,0 @@
-/target/
-/.idea/
-src/main/resources/secrets.properties
-.gitignore
-build
-*.zip

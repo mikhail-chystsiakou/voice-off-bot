@@ -35,6 +35,7 @@ public class UserService
     }
 
     public int addContact(Long userId, Long contactId){
+        jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
         return jdbcTemplate.update(Queries.ADD_CONTACT.getValue(), userId, contactId);
     }
 
