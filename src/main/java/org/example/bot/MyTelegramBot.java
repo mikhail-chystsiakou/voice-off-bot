@@ -1,20 +1,24 @@
 package org.example.bot;
 
-import org.example.util.Pair;
 import lombok.SneakyThrows;
 import org.example.config.BotConfig;
 import org.example.service.UpdateHandler;
-import org.postgresql.core.Tuple;
+import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.IOException;
+import java.util.Arrays;
 
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
@@ -23,9 +27,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     UpdateHandler updateHandler;
 
     @Autowired
-    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) {
+    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) throws TelegramApiException
+    {
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
+        execute(new SetMyCommands(Arrays.asList(new BotCommand("/pull", "pull")), new BotCommandScopeDefault(), null));
     }
 
     @SneakyThrows
@@ -38,8 +44,13 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 execute(reply);
             }
             if (message.hasText()){
-                SendMessage reply = updateHandler.handleText(message);
-                execute(reply);
+                Pair<SendMessage, SendMediaGroup> reply = updateHandler.handleText(message);
+                if (reply.getKey() == null){
+                    execute(reply.getValue());
+                }
+                else {
+                    execute(reply.getKey());
+                }
             }
             if (message.hasContact()){
                 Pair<SendMessage, SendMessage> reply = updateHandler.handleContact(message);

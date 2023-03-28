@@ -11,7 +11,8 @@ public enum Queries
     ADD_REQUEST_TO_CONFIRM("INSERT INTO follow_requests(user_id, followee_id) VALUES(?, ?) ON CONFLICT DO NOTHING"),
     GET_USER_ID_BY_FOLLOWEE_ID("SELECT user_id FROM follow_requests where followee_id = ?"),
     REMOVE_REQUEST_TO_CONFIRM("DELETE FROM follow_requests where user_id = ? and followee_id = ?"),
-    ADD_AUDIO("INSERT INTO user_audios(user_id, file_id, recording_timestamp) VALUES(?, ?, current_timestamp) ON CONFLICT DO NOTHING");
+    ADD_AUDIO("INSERT INTO user_audios(user_id, file_id, recording_timestamp) VALUES(?, ?, current_timestamp) ON CONFLICT DO NOTHING"),
+    PULL_RECORDS_BY_USER_ID("SELECT file_id FROM user_audios WHERE user_id IN (SELECT followee_id FROM user_subscriptions WHERE user_id = ?);");
 
     String value;
 
