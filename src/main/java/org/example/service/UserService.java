@@ -22,7 +22,11 @@ public class UserService
     }
 
     public int addUser(Long userId, Long chatId){
-        return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, new Date(), chatId);
+        return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, chatId);
+    }
+
+    public int saveAudio(Long userId, String fileId) {
+        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId);
     }
 
     public Long getUserById(Long userId){
@@ -51,11 +55,11 @@ public class UserService
 
     public Long getUserByFoloweeId(Long foloweeId)
     {
-        return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
+        return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
     }
 
     public Integer getRequestRecord(Long userId, Long foloweeId)
     {
-        return jdbcTemplate.queryForObject(Queries.CHECK_FOLOWEE.getValue(), new Object[]{userId, foloweeId}, Integer.class);
+        return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWEE.getValue(), new Object[]{userId, foloweeId}, Integer.class);
     }
 }

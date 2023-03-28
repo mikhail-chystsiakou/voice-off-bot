@@ -30,6 +30,9 @@ public class UpdateHandler
         Voice inputVoice = message.getVoice();
         String chatId = message.getChatId().toString();
         String fileId = inputVoice.getFileId();
+        Long userId = message.getFrom().getId();
+        userService.saveAudio(userId, fileId);
+
         SendVoice voice = new SendVoice();
         InputFile inputFile = new InputFile(fileId);
         voice.setChatId(chatId);
