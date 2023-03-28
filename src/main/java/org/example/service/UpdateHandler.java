@@ -37,6 +37,7 @@ public class UpdateHandler
         InputFile inputFile = new InputFile(fileId);
         voice.setChatId(chatId);
         voice.setVoice(inputFile);
+
         return voice;
     }
 
@@ -90,6 +91,7 @@ public class UpdateHandler
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
         sendMessage.setChatId(chatId);
+
 
         String textMessage = message.getText();
         if (CommandOptions.START.getValue().equals(textMessage)){
