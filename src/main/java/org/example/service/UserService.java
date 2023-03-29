@@ -7,8 +7,11 @@ import org.example.enums.Queries;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 
-import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class UserService
@@ -61,5 +64,24 @@ public class UserService
     public Integer getRequestRecord(Long userId, Long foloweeId)
     {
         return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWEE.getValue(), new Object[]{userId, foloweeId}, Integer.class);
+    }
+
+    public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
+    {
+        List<String> fileNames = jdbcTemplate.queryForList(Queries.PULL_RECORDS_BY_USER_ID.getValue(), new Object[]{userId}, String.class);
+
+        List<SendAudio> audioList = fileNames.stream()
+            .map(fileName ->
+                 {
+                     SendAudio sendAudio = new SendAudio();
+                     sendAudio.setAudio(new InputFile(fileName));
+                     sendAudio.setChatId(chatId);
+//                     TODO: add user name in table users and set right caption to pull audios
+//                     sendAudio.setCaption("Record from @" + autorName + " : " + date);
+                     return sendAudio;
+                 })
+            .collect(Collectors.toList());
+
+        return audioList;
     }
 }

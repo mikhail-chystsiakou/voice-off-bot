@@ -7,10 +7,19 @@ import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
@@ -19,9 +28,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     UpdateHandler updateHandler;
 
     @Autowired
-    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) {
+    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) throws TelegramApiException
+    {
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
+        execute(new SetMyCommands(Arrays.asList(new BotCommand("/pull", "pull")), new BotCommandScopeDefault(), null));
     }
 
     @SneakyThrows
@@ -30,12 +41,26 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (message.hasVoice()){
-                SendVoice reply = updateHandler.handleVoiceMessage(message);
+                SendAudio reply = updateHandler.handleVoiceMessage(message);
                 execute(reply);
             }
             if (message.hasText()){
-                SendMessage reply = updateHandler.handleText(message);
-                execute(reply);
+                Pair<SendMessage, List<SendAudio>> reply = updateHandler.handleText(message);
+                if (reply.getKey() == null){
+                    reply.getValue().stream().forEach(record -> {
+                        try
+                        {
+                            execute(record);
+                        }
+                        catch (TelegramApiException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+                else {
+                    execute(reply.getKey());
+                }
             }
             if (message.hasContact()){
                 Pair<SendMessage, SendMessage> reply = updateHandler.handleContact(message);

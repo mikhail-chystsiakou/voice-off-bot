@@ -3,7 +3,8 @@ package org.example.enums;
 public enum CommandOptions
 {
 
-    START("/start");
+    START("/start"),
+    PULL("/pull");
 
     String value;
 

@@ -1,17 +1,16 @@
 package org.example.service;
 
-import org.example.util.Pair;
 import org.example.enums.CommandOptions;
+import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.*;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Voice;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -25,19 +24,19 @@ public class UpdateHandler
         this.userService = userService;
     }
 
-    public SendVoice handleVoiceMessage(Message message)
+    public SendAudio handleVoiceMessage(Message message)
     {
         Voice inputVoice = message.getVoice();
+
         String chatId = message.getChatId().toString();
         String fileId = inputVoice.getFileId();
         Long userId = message.getFrom().getId();
         userService.saveAudio(userId, fileId);
 
-        SendVoice voice = new SendVoice();
+        SendAudio voice = new SendAudio();
         InputFile inputFile = new InputFile(fileId);
         voice.setChatId(chatId);
-        voice.setVoice(inputFile);
-
+        voice.setAudio(inputFile);
         return voice;
     }
 
@@ -63,20 +62,8 @@ public class UpdateHandler
         SendMessage messageForFolowee = new SendMessage();
         messageForFolowee.setChatId(foloweeChatId);
         messageForFolowee.setText("Hi! @" + message.getFrom().getUserName() + " send request to follow you. Do you confirm?");
+        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription());
 
-        InlineKeyboardButton inlineKeyboardButtonYes = new InlineKeyboardButton();
-        inlineKeyboardButtonYes.setText("Yes");
-        inlineKeyboardButtonYes.setCallbackData("Yes");
-
-        InlineKeyboardButton inlineKeyboardButtonNo = new InlineKeyboardButton();
-        inlineKeyboardButtonNo.setText("No");
-        inlineKeyboardButtonNo.setCallbackData("No");
-
-
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(inlineKeyboardButtonYes, inlineKeyboardButtonNo)));
-
-        messageForFolowee.setReplyMarkup(inlineKeyboardMarkup);
         sendMessage.setText("Your request was sent");
 
         if (!Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId))){
@@ -86,23 +73,26 @@ public class UpdateHandler
         return new Pair<>(sendMessage, messageForFolowee);
     }
 
-    public SendMessage handleText(Message message)
+    public Pair<SendMessage, List<SendAudio>> handleText(Message message)
     {
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
         sendMessage.setChatId(chatId);
 
-
-        String textMessage = message.getText();
-        if (CommandOptions.START.getValue().equals(textMessage)){
+        String inputMessage = message.getText();
+        if (CommandOptions.START.getValue().equals(inputMessage)){
             int result = userService.addUser(message.getFrom().getId(), chatId);
             String replyMessage = result == 1 ? "You was added to the system" : "You have already registered";
             sendMessage.setText(replyMessage);
         }
-        else {
-            sendMessage.setText(textMessage);
+        if (CommandOptions.PULL.getValue().equals(inputMessage)){
+            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
+            return new Pair<>(null, records);
         }
-        return sendMessage;
+        else {
+            sendMessage.setText(inputMessage);
+        }
+        return new Pair<>(sendMessage, null);
     }
 
     public Pair<SendMessage, SendMessage> handleConfirmation(CallbackQuery callbackQuery)
