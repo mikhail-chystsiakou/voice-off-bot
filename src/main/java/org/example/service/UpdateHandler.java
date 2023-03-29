@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -73,7 +74,7 @@ public class UpdateHandler
         return new Pair<>(sendMessage, messageForFolowee);
     }
 
-    public Pair<SendMessage, List<SendAudio>> handleText(Message message)
+    public Pair<SendMessage, List<SendVoice>> handleText(Message message)
     {
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
@@ -86,7 +87,7 @@ public class UpdateHandler
             sendMessage.setText(replyMessage);
         }
         if (CommandOptions.PULL.getValue().equals(inputMessage)){
-            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
+            List<SendVoice> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
             return new Pair<>(null, records);
         }
         else {

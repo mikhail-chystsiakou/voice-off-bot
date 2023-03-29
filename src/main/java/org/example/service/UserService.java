@@ -8,10 +8,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
 @Component
 public class UserService
@@ -66,22 +69,24 @@ public class UserService
         return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWEE.getValue(), new Object[]{userId, foloweeId}, Integer.class);
     }
 
-    public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
+    public List<SendVoice> pullAllRecordsForUser(Long userId, Long chatId)
     {
         List<String> fileNames = jdbcTemplate.queryForList(Queries.PULL_RECORDS_BY_USER_ID.getValue(), new Object[]{userId}, String.class);
 
-        List<SendAudio> audioList = fileNames.stream()
+        jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(), userId);
+
+        List<SendVoice> voiceList = fileNames.stream()
             .map(fileName ->
                  {
-                     SendAudio sendAudio = new SendAudio();
-                     sendAudio.setAudio(new InputFile(fileName));
-                     sendAudio.setChatId(chatId);
+                     SendVoice sendVoice = new SendVoice();
+                     sendVoice.setVoice(new InputFile(fileName));
+                     sendVoice.setChatId(chatId);
 //                     TODO: add user name in table users and set right caption to pull audios
-//                     sendAudio.setCaption("Record from @" + autorName + " : " + date);
-                     return sendAudio;
+                     sendVoice.setCaption("Record from @" + "mich" + " : " + "on 12.02.22");
+                     return sendVoice;
                  })
             .collect(Collectors.toList());
 
-        return audioList;
+        return voiceList;
     }
 }

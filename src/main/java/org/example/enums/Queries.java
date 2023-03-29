@@ -12,7 +12,12 @@ public enum Queries
     GET_USER_ID_BY_FOLLOWEE_ID("SELECT user_id FROM follow_requests where followee_id = ?"),
     REMOVE_REQUEST_TO_CONFIRM("DELETE FROM follow_requests where user_id = ? and followee_id = ?"),
     ADD_AUDIO("INSERT INTO user_audios(user_id, file_id, recording_timestamp) VALUES(?, ?, current_timestamp) ON CONFLICT DO NOTHING"),
-    PULL_RECORDS_BY_USER_ID("SELECT file_id FROM user_audios WHERE user_id IN (SELECT followee_id FROM user_subscriptions WHERE user_id = ?);");
+    PULL_RECORDS_BY_USER_ID("SELECT file_id\n" +
+            "FROM user_audios ua, user_subscriptions us\n" +
+            "WHERE ua.user_id = us.followee_id\n" +
+            "  and ua.recording_timestamp > us.last_pull_timestamp\n" +
+            "and us.user_id = ?"),
+    SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = current_timestamp where user_id = ?");
 
     String value;
 

@@ -45,18 +45,25 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 execute(reply);
             }
             if (message.hasText()){
-                Pair<SendMessage, List<SendAudio>> reply = updateHandler.handleText(message);
+                Pair<SendMessage, List<SendVoice>> reply = updateHandler.handleText(message);
                 if (reply.getKey() == null){
-                    reply.getValue().stream().forEach(record -> {
-                        try
-                        {
-                            execute(record);
-                        }
-                        catch (TelegramApiException e)
-                        {
-                            e.printStackTrace();
-                        }
-                    });
+                    if (reply.getValue().isEmpty()) {
+                        SendMessage sm = new SendMessage();
+                        sm.setText("No updates yet");
+                        sm.setChatId(message.getChatId());
+                        execute(sm);
+                    } else {
+                        reply.getValue().stream().forEach(record -> {
+                            try
+                            {
+                                execute(record);
+                            }
+                            catch (TelegramApiException e)
+                            {
+                                e.printStackTrace();
+                            }
+                        });
+                    }
                 }
                 else {
                     execute(reply.getKey());
