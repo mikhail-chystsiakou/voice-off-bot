@@ -19,6 +19,7 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
@@ -40,13 +41,22 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (message.hasVoice()){
-                SendVoice reply = updateHandler.handleVoiceMessage(message);
+                SendAudio reply = updateHandler.handleVoiceMessage(message);
                 execute(reply);
             }
             if (message.hasText()){
-                Pair<SendMessage, SendMediaGroup> reply = updateHandler.handleText(message);
+                Pair<SendMessage, List<SendAudio>> reply = updateHandler.handleText(message);
                 if (reply.getKey() == null){
-                    execute(reply.getValue());
+                    reply.getValue().stream().forEach(record -> {
+                        try
+                        {
+                            execute(record);
+                        }
+                        catch (TelegramApiException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    });
                 }
                 else {
                     execute(reply.getKey());

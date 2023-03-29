@@ -7,14 +7,9 @@ import org.example.enums.Queries;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaAudio;
 
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -71,26 +66,22 @@ public class UserService
         return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWEE.getValue(), new Object[]{userId, foloweeId}, Integer.class);
     }
 
-    public SendMediaGroup pullAllRecordsForUser(Long userId)
+    public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
     {
         List<String> fileNames = jdbcTemplate.queryForList(Queries.PULL_RECORDS_BY_USER_ID.getValue(), new Object[]{userId}, String.class);
 
-        List<InputMedia> audioList = fileNames.stream()
+        List<SendAudio> audioList = fileNames.stream()
             .map(fileName ->
                  {
-                     InputMediaAudio inputMediaAudio = new InputMediaAudio();
-//                     InputFile inputFile = new InputFile(fileName);
-//                     inputMediaAudio.setThumb(inputFile);
-//                     inputFile.setMedia(fileName);
-                     inputMediaAudio.setMedia(fileName);
-                     return inputMediaAudio;
+                     SendAudio sendAudio = new SendAudio();
+                     sendAudio.setAudio(new InputFile(fileName));
+                     sendAudio.setChatId(chatId);
+//                     TODO: add user name in table users and set right caption to pull audios
+//                     sendAudio.setCaption("Record from @" + autorName + " : " + date);
+                     return sendAudio;
                  })
-//            .map(inputMediaAudio -> (InputMedia)inputMediaAudio)
             .collect(Collectors.toList());
 
-        SendMediaGroup mediaGroup = new SendMediaGroup();
-
-        mediaGroup.setMedias(audioList);
-        return mediaGroup;
+        return audioList;
     }
 }

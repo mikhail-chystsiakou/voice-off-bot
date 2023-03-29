@@ -1,13 +1,15 @@
 package org.example.service;
 
-import org.example.util.Pair;
 import org.example.enums.CommandOptions;
+import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Voice;
 
 import java.util.List;
 
@@ -22,18 +24,19 @@ public class UpdateHandler
         this.userService = userService;
     }
 
-    public SendVoice handleVoiceMessage(Message message)
+    public SendAudio handleVoiceMessage(Message message)
     {
         Voice inputVoice = message.getVoice();
+
         String chatId = message.getChatId().toString();
         String fileId = inputVoice.getFileId();
         Long userId = message.getFrom().getId();
         userService.saveAudio(userId, fileId);
 
-        SendVoice voice = new SendVoice();
+        SendAudio voice = new SendAudio();
         InputFile inputFile = new InputFile(fileId);
         voice.setChatId(chatId);
-        voice.setVoice(inputFile);
+        voice.setAudio(inputFile);
         return voice;
     }
 
@@ -70,7 +73,7 @@ public class UpdateHandler
         return new Pair<>(sendMessage, messageForFolowee);
     }
 
-    public Pair<SendMessage, SendMediaGroup> handleText(Message message)
+    public Pair<SendMessage, List<SendAudio>> handleText(Message message)
     {
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
@@ -83,9 +86,7 @@ public class UpdateHandler
             sendMessage.setText(replyMessage);
         }
         if (CommandOptions.PULL.getValue().equals(inputMessage)){
-            Long user = message.getFrom().getId();
-            SendMediaGroup records = userService.pullAllRecordsForUser(message.getFrom().getId());
-            records.setChatId(chatId);
+            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
             return new Pair<>(null, records);
         }
         else {
