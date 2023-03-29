@@ -1,16 +1,16 @@
 package org.example.service;
 
+import org.example.bot.ExecuteFunction;
 import org.example.enums.CommandOptions;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Voice;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ public class UpdateHandler
         this.userService = userService;
     }
 
-    public SendAudio handleVoiceMessage(Message message)
+    public SendMessage handleVoiceMessage(Message message)
     {
         Voice inputVoice = message.getVoice();
 
@@ -34,11 +34,10 @@ public class UpdateHandler
         Long userId = message.getFrom().getId();
         userService.saveAudio(userId, fileId);
 
-        SendAudio voice = new SendAudio();
-        InputFile inputFile = new InputFile(fileId);
-        voice.setChatId(chatId);
-        voice.setAudio(inputFile);
-        return voice;
+        SendMessage reply = new SendMessage();
+        reply.setText("Ok, recorded");
+        reply.setChatId(chatId);
+        return reply;
     }
 
     public Pair<SendMessage, SendMessage> handleContact(Message message)
@@ -74,24 +73,52 @@ public class UpdateHandler
         return new Pair<>(sendMessage, messageForFolowee);
     }
 
-    public Pair<SendMessage, List<SendVoice>> handleText(Message message)
-    {
+    public Pair<SendMessage, List<SendVoice>> handleText(Message message, ExecuteFunction execute) throws TelegramApiException {
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
         sendMessage.setChatId(chatId);
 
         String inputMessage = message.getText();
-        if (CommandOptions.START.getValue().equals(inputMessage)){
-            int result = userService.addUser(message.getFrom().getId(), chatId);
+        if (CommandOptions.START.getCommand().equals(inputMessage)){
+            int result = userService.addUser(message.getFrom().getId(), chatId, message.getFrom().getUserName());
             String replyMessage = result == 1 ? "You was added to the system" : "You have already registered";
             sendMessage.setText(replyMessage);
-        }
-        if (CommandOptions.PULL.getValue().equals(inputMessage)){
+        } else if (CommandOptions.PULL.getCommand().equals(inputMessage)){
             List<SendVoice> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
             return new Pair<>(null, records);
-        }
-        else {
-            sendMessage.setText(inputMessage);
+        } else if (CommandOptions.FOLLOWERS.getCommand().equals(inputMessage)){
+            SendMessage followers = userService.getFollowers(message.getFrom().getId(), chatId);
+            return new Pair<>(followers, null);
+        } else if (CommandOptions.SUBSCRIPTIONS.getCommand().equals(inputMessage)){
+            SendMessage subscriptions = userService.getSubscriptions(message.getFrom().getId(), chatId);
+            return new Pair<>(subscriptions, null);
+        } else if (inputMessage.startsWith(CommandOptions.UNSUBSCRIBE.getCommand())) {
+            String followeeName = inputMessage.replaceAll(CommandOptions.UNSUBSCRIBE.getCommand(), "").trim();
+            SendMessage result;
+            if (followeeName.isEmpty()) {
+                result = new SendMessage();
+                result.setChatId(chatId);
+                result.setText("Specify username in form @user_name");
+            } else {
+                result = userService.unsubscribe(message, followeeName, execute);
+            }
+            return new Pair<>(result, null);
+        } else if (inputMessage.startsWith(CommandOptions.REMOVE_FOLLOWER.getCommand())) {
+            String followerName = inputMessage.replaceAll(CommandOptions.REMOVE_FOLLOWER.getCommand(), "").trim();
+            SendMessage result;
+            if (followerName.isEmpty()) {
+                result = new SendMessage();
+                result.setChatId(chatId);
+                result.setText("Specify username in form @user_name");
+            } else {
+                result = userService.removeFollower(message, followerName, execute);
+            }
+            return new Pair<>(result, null);
+        } else if (CommandOptions.END.getCommand().equals(inputMessage)) {
+            SendMessage result = userService.removeUser(message.getFrom().getId(), chatId);
+            return new Pair<>(result, null);
+        } else {
+            sendMessage.setText("Only voice messages will be recorded");
         }
         return new Pair<>(sendMessage, null);
     }
@@ -111,13 +138,14 @@ public class UpdateHandler
             userService.addContact(userId, foloweeId);
             sendMessage.setText("User was accepted");
             messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " accepted you!");
+            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " accepted you");
         }
 
         if ("No".equals(answer))
         {
+            sendMessage.setText("Ok, subscribe request declined");
             messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " decline you!");
+            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " declined you");
         }
         return new Pair<>(sendMessage, messageToUser);
     }

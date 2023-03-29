@@ -2,7 +2,9 @@ package org.example.bot;
 
 import lombok.SneakyThrows;
 import org.example.config.BotConfig;
+import org.example.enums.CommandOptions;
 import org.example.service.UpdateHandler;
+import org.example.service.UserService;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -20,32 +22,48 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
 
     private static String BOT_TOKEN;
     UpdateHandler updateHandler;
+    UserService userService;
 
     @Autowired
-    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler) throws TelegramApiException
+    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler, UserService userService) throws TelegramApiException
     {
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
-        execute(new SetMyCommands(Arrays.asList(new BotCommand("/pull", "pull")), new BotCommandScopeDefault(), null));
+        this.userService = userService;
+        List<BotCommand> botCommands = Arrays.stream(CommandOptions.values())
+                .map(co -> new BotCommand(co.getCommand(), co.getDescription()))
+                .collect(Collectors.toList());
+        execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
     }
+
 
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage()) {
             Message message = update.getMessage();
+            if (!isRegistered(message.getFrom().getId())) {
+                if (!message.hasText() || !message.getText().equals("/start")) {
+                    SendMessage notRegisteredMessage = new SendMessage();
+                    notRegisteredMessage.setChatId(message.getChatId());
+                    notRegisteredMessage.setText("Send /start to register before using the bot");
+                    execute(notRegisteredMessage);
+                    return;
+                }
+            }
             if (message.hasVoice()){
-                SendAudio reply = updateHandler.handleVoiceMessage(message);
+                SendMessage reply = updateHandler.handleVoiceMessage(message);
                 execute(reply);
             }
             if (message.hasText()){
-                Pair<SendMessage, List<SendVoice>> reply = updateHandler.handleText(message);
+                Pair<SendMessage, List<SendVoice>> reply = updateHandler.handleText(message, this::execute);
                 if (reply.getKey() == null){
                     if (reply.getValue().isEmpty()) {
                         SendMessage sm = new SendMessage();
@@ -80,8 +98,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
         if (update.hasCallbackQuery()){
             Pair<SendMessage, SendMessage> sendMessage = updateHandler.handleConfirmation(update.getCallbackQuery());
-            execute(sendMessage.getKey());
-            execute(sendMessage.getValue());
+            if (sendMessage.getKey() != null) {
+                execute(sendMessage.getKey());
+            }
+            if (sendMessage.getValue() != null) {
+                execute(sendMessage.getValue());
+            }
         }
     }
 
@@ -99,5 +121,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     private String downloadVoiceMessage(String fileId) {
         // Replace with your code to download the file
         return "/path/to/your/file";
+    }
+
+    private boolean isRegistered(Long userId) {
+        return userService.getUserById(userId) != null;
     }
 }
