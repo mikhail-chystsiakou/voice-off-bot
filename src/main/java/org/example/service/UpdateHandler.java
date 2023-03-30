@@ -81,7 +81,7 @@ public class UpdateHandler
         String inputMessage = message.getText();
         if (CommandOptions.START.getCommand().equals(inputMessage)){
             int result = userService.addUser(message.getFrom().getId(), chatId, message.getFrom().getUserName());
-            String replyMessage = result == 1 ? "You was added to the system" : "You have already registered";
+            String replyMessage = result == 1 ? "You was added to the system. Subscribe to other person by sharing it's contact here." : "You have already registered";
             sendMessage.setText(replyMessage);
         } else if (CommandOptions.PULL.getCommand().equals(inputMessage)){
             List<SendVoice> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
