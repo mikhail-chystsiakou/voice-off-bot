@@ -1,13 +1,15 @@
 package org.example.service;
 
-import org.example.bot.ExecuteFunction;
+import org.example.util.ExecuteFunction;
 import org.example.enums.CommandOptions;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Voice;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -117,6 +119,12 @@ public class UpdateHandler
         } else if (CommandOptions.END.getCommand().equals(inputMessage)) {
             SendMessage result = userService.removeUser(message.getFrom().getId(), chatId);
             return new Pair<>(result, null);
+        } else if (inputMessage.startsWith(CommandOptions.HELP.getCommand())) {
+            SendMessage result = new SendMessage();
+            result.setChatId(chatId);
+            result.setText("This is help");
+            return new Pair<>(result, null);
+
         } else {
             sendMessage.setText("Only voice messages will be recorded");
         }

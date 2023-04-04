@@ -3,8 +3,9 @@ package org.example.enums;
 public enum CommandOptions
 {
 
-    START("/start", "Register youself"),
+    START("/start", "Register yourself"),
     PULL("/pull", "Get updates"),
+    HELP("/hep", "Get help"),
     FOLLOWERS("/followers", "List your followers"),
     REMOVE_FOLLOWER("/removefollower", "Stop sending updates to follower"),
     SUBSCRIPTIONS("/subscriptions", "List your subscriptions"),

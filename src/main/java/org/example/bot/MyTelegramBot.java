@@ -14,6 +14,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 @Component
 public class MyTelegramBot extends TelegramLongPollingBot {
 
-    private static String BOT_TOKEN;
+    private final String BOT_TOKEN;
     UpdateHandler updateHandler;
     UserService userService;
 
@@ -37,6 +38,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
         this.userService = userService;
+
         List<BotCommand> botCommands = Arrays.stream(CommandOptions.values())
                 .map(co -> new BotCommand(co.getCommand(), co.getDescription()))
                 .collect(Collectors.toList());
@@ -63,6 +65,15 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 execute(reply);
             }
             if (message.hasText()){
+                if (message.getText().startsWith("/play")) {
+
+                    SendAudio sa = new SendAudio();
+                    sa.setAudio(new InputFile("https://mmich.online/nextcloud/index.php/s/bq9d9JZ4YisfNSq/download"));
+                    sa.setAudio(new InputFile("https://bewired.app?from=02.03.2022&to=04.04.2022"));
+                    sa.setChatId(message.getChatId());
+                    execute(sa);
+                    return;
+                }
                 Pair<SendMessage, List<SendVoice>> reply = updateHandler.handleText(message, this::execute);
                 if (reply.getKey() == null){
                     if (reply.getValue().isEmpty()) {
