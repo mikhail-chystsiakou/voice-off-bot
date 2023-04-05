@@ -1,11 +1,11 @@
 package org.example.enums;
 
-public enum CommandOptions
+public enum BotCommands
 {
 
     START("/start", "Register yourself"),
     PULL("/pull", "Get updates"),
-    HELP("/hep", "Get help"),
+    HELP("/help", "Get help"),
     FOLLOWERS("/followers", "List your followers"),
     REMOVE_FOLLOWER("/removefollower", "Stop sending updates to follower"),
     SUBSCRIPTIONS("/subscriptions", "List your subscriptions"),
@@ -15,7 +15,7 @@ public enum CommandOptions
     String command;
     String description;
 
-    CommandOptions(String command, String description){
+    BotCommands(String command, String description){
         this.command = command;
         this.description = description;
     }
