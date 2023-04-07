@@ -25,6 +25,7 @@ public enum Queries
             "and us.user_id = ?"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = current_timestamp where user_id = ?"),
     GET_USER_ID_BY_NAME("select user_id, chat_id from users where user_name = ?"),
+    GET_USER_ID_BY_ID("select user_id, user_name, chat_id from users where user_id = ?"),
     REMOVE_USER("delete from users where user_id = ?");
 
     String value;

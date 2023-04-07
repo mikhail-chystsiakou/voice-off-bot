@@ -6,6 +6,7 @@ import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -67,7 +68,14 @@ public class UserService
 
     public Long getUserByFoloweeId(Long foloweeId)
     {
-        return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
+        try
+        {
+            return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            return null;
+        }
     }
 
     public Integer getRequestRecord(Long userId, Long followeeId)
@@ -200,6 +208,25 @@ public class UserService
             },
             userName
         );
+    }
+
+    UserInfo loadUserInfoById(Long userId) {
+        try
+        {
+            return jdbcTemplate.queryForObject(
+                Queries.GET_USER_ID_BY_ID.getValue(),
+                (rs, n) -> {
+                    String userName = rs.getString("user_name");
+                    String followeeChatId = rs.getString("chat_id");
+                    return new UserInfo(userId, userName, followeeChatId);
+                },
+                userId
+            );
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            return null;
+        }
     }
 
     public class UserInfo {

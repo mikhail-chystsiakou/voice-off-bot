@@ -3,21 +3,17 @@ package org.example.bot;
 import lombok.SneakyThrows;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
-import org.example.service.ButtonsService;
+import org.example.enums.ButtonCommands;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
-import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.*;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Arrays;
@@ -60,15 +56,14 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 String inputMessage = message.getText();
                 if (inputMessage.startsWith(BotCommands.START.getCommand())){
                     updateHandler.registerUser(message);
-                } else if (BotCommands.PULL.getCommand().equals(inputMessage) || BotCommands.PULL.getDescription().equals(inputMessage)){
+                } else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().equals(inputMessage)){
                     updateHandler.pull(message);
-                } else if (BotCommands.FOLLOWERS.getCommand().equals(inputMessage)){
-                    updateHandler.getFollowers(message);
-                } else if (BotCommands.SUBSCRIPTIONS.getCommand().equals(inputMessage)){
-                    updateHandler.getSubscriptions(message);
-                } else if (inputMessage.startsWith(BotCommands.UNSUBSCRIBE.getCommand())) {
+                } else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage) || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().equals(inputMessage)){
+                    updateHandler.getManageSubscriptionsMenu(message);
+//                    updateHandler.getSubscriptions(message);
+                } else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
                     updateHandler.unsubscribe(message);
-                } else if (inputMessage.startsWith(BotCommands.REMOVE_FOLLOWER.getCommand())) {
+                } else if (inputMessage.startsWith(ButtonCommands.REMOVE_SUBSCRIBER.getCommand())) {
                     updateHandler.removeFollower(message);
                 } else if (BotCommands.END.getCommand().equals(inputMessage)) {
                     updateHandler.end(message);
@@ -79,7 +74,19 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 }
             }
             if (message.getUserShared() != null){
-                updateHandler.handleContact(message);
+                String requestId = message.getUserShared().getRequestId();
+                if ("1".equals(requestId))
+                {
+                    updateHandler.handleContact(message);
+                }
+                if ("2".equals(requestId))
+                {
+                    updateHandler.unsubscribe(message);
+                }
+                if ("3".equals(requestId))
+                {
+                    updateHandler.removeFollower(message);
+                }
             }
         }
         if (update.hasCallbackQuery()){
