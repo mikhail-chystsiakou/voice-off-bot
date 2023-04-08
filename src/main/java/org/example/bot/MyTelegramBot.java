@@ -4,7 +4,6 @@ import lombok.SneakyThrows;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
-import org.example.enums.CommandOptions;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.Pair;
@@ -43,7 +42,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         this.updateHandler = updateHandler;
         this.userService = userService;
 
-        List<BotCommand> botCommands = Arrays.stream(CommandOptions.values())
+        List<BotCommand> botCommands = Arrays.stream(BotCommands.values())
                 .map(co -> new BotCommand(co.getCommand(), co.getDescription()))
                 .collect(Collectors.toList());
         execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
