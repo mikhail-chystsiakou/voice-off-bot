@@ -1,7 +1,9 @@
 CREATE TABLE IF NOT EXISTS users
 (
     user_id bigint NOT NULL ,
-    user_name varchar NOT NULL,
+    username varchar,
+    user_first_name varchar,
+    user_last_name varchar,
     registered_date timestamp without time zone,
     chat_id bigint,
 

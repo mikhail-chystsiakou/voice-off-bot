@@ -1,32 +1,34 @@
 package org.example.service;
 
-import org.example.config.BotConfig;
-import org.example.enums.FollowQueries;
+import org.example.Constants;
 import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
-import org.example.enums.CommandOptions;
-import org.example.util.Pair;
+import org.example.util.SendAudioFunction;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.facilities.filedownloader.TelegramFileDownloader;
-import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.*;
-import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class UpdateHandler
 {
+
+    @Autowired
     UserService userService;
-    private final String BOT_TOKEN;
+
+    @Autowired
+    @Lazy
+    ExecuteFunction executeFunction;
+
+    @Autowired
+    @Lazy
+    SendAudioFunction sendAudioFunction;
 
     @Autowired
     VoiceStorage voiceStorage;
@@ -34,51 +36,47 @@ public class UpdateHandler
     @Autowired
     JdbcTemplate jdbcTemplate;
 
-    @Autowired
-    public UpdateHandler(BotConfig botConfig, UserService userService)
-    {
-        this.BOT_TOKEN = botConfig.getToken();
-        this.userService = userService;
-    }
-
-    public SendMessage handleVoiceMessage(Message message, ExecuteFunction execute) throws TelegramApiException {
+    public void handleVoiceMessage(Message message) throws TelegramApiException {
 
         Voice voice = message.getVoice();
         voiceStorage.storeVoice(
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
-                execute
+                executeFunction::execute
         );
 
         SendMessage reply = new SendMessage();
         reply.setText("Ok, recorded");
         reply.setChatId(message.getChatId());
-        return reply;
+        executeFunction.execute(reply);
     }
 
-    public Pair<SendMessage, SendMessage> handleContact(Message message)
+    public void handleContact(Message message) throws TelegramApiException
     {
         Long userId = message.getFrom().getId();
-        Long contactId = message.getContact().getUserId();
+        Long contactId = message.getUserShared().getUserId();
         Long chatId = message.getChatId();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
 
         if (userService.getUserById(contactId) == null)
         {
             sendMessage.setText("Contact not found");
-            return new Pair<>(sendMessage, null);
+            executeFunction.execute(sendMessage);
+            return;
         }
         if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, contactId)))
         {
             sendMessage.setText("Contact is already linked to user");
-            return new Pair<>(sendMessage, null);
+            executeFunction.execute(sendMessage);
+            return;
         }
         Long foloweeChatId = userService.getChatIdByUserId(contactId);
         SendMessage messageForFolowee = new SendMessage();
         messageForFolowee.setChatId(foloweeChatId);
-        messageForFolowee.setText("Hi! @" + message.getFrom().getUserName() + " send request to follow you. Do you confirm?");
+        messageForFolowee.setText("Hi! " + getUserNameWithAt(message) + " send request to follow you. Do you confirm?");
         messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription());
 
         sendMessage.setText("Your request was sent");
@@ -87,89 +85,298 @@ public class UpdateHandler
             int result = userService.addRequestToConfirm(userId, contactId);
         }
 
-        return new Pair<>(sendMessage, messageForFolowee);
+        executeFunction.execute(sendMessage);
+        executeFunction.execute(messageForFolowee);
     }
 
-    public Pair<SendMessage, List<SendAudio>> handleText(Message message, ExecuteFunction execute) throws TelegramApiException {
-        SendMessage sendMessage = new SendMessage();
-        Long chatId = message.getChatId();
-        sendMessage.setChatId(chatId);
-
-        String inputMessage = message.getText();
-        if (CommandOptions.START.getCommand().equals(inputMessage)){
-            int result = userService.addUser(message.getFrom().getId(), chatId, message.getFrom().getUserName());
-            String replyMessage = result == 1 ? "You was added to the system. Subscribe to other person by sharing it's contact here." : "You have already registered";
-            sendMessage.setText(replyMessage);
-        } else if (CommandOptions.PULL.getCommand().equals(inputMessage)){
-            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
-            return new Pair<>(null, records);
-        } else if (CommandOptions.FOLLOWERS.getCommand().equals(inputMessage)){
-            SendMessage followers = userService.getFollowers(message.getFrom().getId(), chatId);
-            return new Pair<>(followers, null);
-        } else if (CommandOptions.SUBSCRIPTIONS.getCommand().equals(inputMessage)){
-            SendMessage subscriptions = userService.getSubscriptions(message.getFrom().getId(), chatId);
-            return new Pair<>(subscriptions, null);
-        } else if (inputMessage.startsWith(CommandOptions.UNSUBSCRIBE.getCommand())) {
-            String followeeName = inputMessage.replaceAll(CommandOptions.UNSUBSCRIBE.getCommand(), "").trim();
-            SendMessage result;
-            if (followeeName.isEmpty()) {
-                result = new SendMessage();
-                result.setChatId(chatId);
-                result.setText("Specify username in form @user_name");
-            } else {
-                result = userService.unsubscribe(message, followeeName, execute);
-            }
-            return new Pair<>(result, null);
-        } else if (inputMessage.startsWith(CommandOptions.REMOVE_FOLLOWER.getCommand())) {
-            String followerName = inputMessage.replaceAll(CommandOptions.REMOVE_FOLLOWER.getCommand(), "").trim();
-            SendMessage result;
-            if (followerName.isEmpty()) {
-                result = new SendMessage();
-                result.setChatId(chatId);
-                result.setText("Specify username in form @user_name");
-            } else {
-                result = userService.removeFollower(message, followerName, execute);
-            }
-            return new Pair<>(result, null);
-        } else if (CommandOptions.END.getCommand().equals(inputMessage)) {
-            SendMessage result = userService.removeUser(message.getFrom().getId(), chatId);
-            return new Pair<>(result, null);
-        } else if (inputMessage.startsWith(CommandOptions.HELP.getCommand())) {
-            SendMessage result = new SendMessage();
-            result.setChatId(chatId);
-            result.setText("This is help");
-            return new Pair<>(result, null);
-
-        } else {
-            sendMessage.setText("You can share only voice messages");
-        }
-        return new Pair<>(sendMessage, null);
-    }
-
-    public Pair<SendMessage, SendMessage> handleConfirmation(CallbackQuery callbackQuery)
+    public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
     {
         String answer = callbackQuery.getData();
 
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(callbackQuery.getMessage().getChatId());
+        SendMessage messageToFollowee = new SendMessage();
         SendMessage messageToUser = new SendMessage();
-        Long foloweeId = callbackQuery.getFrom().getId();
-        Long userId = userService.getUserByFoloweeId(foloweeId);
 
-        if ("Yes".equals(answer))
+        messageToFollowee.setChatId(callbackQuery.getMessage().getChatId());
+        Long followeeId = callbackQuery.getFrom().getId();
+        //TODO: bug below, need to know userId
+        Long userId = userService.getUserByFoloweeId(followeeId);
+
+        if (userId == null)
         {
-            userService.addContact(userId, foloweeId);
-            sendMessage.setText("User was accepted");
-            messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " accepted you");
+            messageToFollowee.setText("Data is already processed");
+            executeFunction.execute(messageToFollowee);
+            return;
         }
 
-        if ("No".equals(answer))
+        if (Constants.YES.equals(answer))
         {
-            sendMessage.setText("Ok, subscribe request declined");
+            userService.addContact(userId, followeeId);
+            messageToFollowee.setText("User was accepted");
             messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " declined you");
+            messageToUser.setText("User " + getUserNameWithAt(callbackQuery) + " accepted you");
         }
-        return new Pair<>(sendMessage, messageToUser);
+
+        if (Constants.No.equals(answer))
+        {
+            messageToFollowee.setText("Ok, subscribe request declined");
+            messageToUser.setChatId(userService.getChatIdByUserId(userId));
+            messageToUser.setText("User " + getUserNameWithAt(callbackQuery) + " declined you");
+        }
+        executeFunction.execute(messageToFollowee);
+        executeFunction.execute(messageToUser);
     }
+
+    public void registerUser(Message message) throws TelegramApiException
+    {
+        User user = message.getFrom();
+        int result = userService.addUser(
+                user.getId(),
+                message.getChatId(),
+                user.getUserName(),
+                user.getFirstName(),
+                user.getLastName()
+        );
+        String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
+        SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        executeFunction.execute(sendMessage);
+    }
+
+    private String getUserName(Message message)
+    {
+        if (message.getFrom().getUserName() != null)
+        {
+            return message.getFrom().getUserName();
+        }
+        if (message.getFrom().getLastName() != null)
+        {
+            return message.getFrom().getFirstName() + " " + message.getFrom().getLastName();
+        }
+        return message.getFrom().getFirstName();
+    }
+
+    private String getUserNameWithAt(Message message)
+    {
+        if (message.getFrom().getUserName() != null)
+        {
+            return "@" + message.getFrom().getUserName();
+        }
+        if (message.getFrom().getLastName() != null)
+        {
+            return message.getFrom().getFirstName() + " " + message.getFrom().getLastName();
+        }
+        return message.getFrom().getFirstName();
+    }
+
+    private String getUserNameWithAt(CallbackQuery message)
+    {
+        if (message.getFrom().getUserName() != null)
+        {
+            return "@" + message.getFrom().getUserName();
+        }
+        if (message.getFrom().getLastName() != null)
+        {
+            return message.getFrom().getFirstName() + " " + message.getFrom().getLastName();
+        }
+        return message.getFrom().getFirstName();
+    }
+
+    public void pull(Message message) throws TelegramApiException
+    {
+        List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
+        if (records.isEmpty())
+        {
+            executeFunction.execute(new SendMessage(message.getChatId().toString(), "No updates"));
+        }else {
+            records.forEach(record -> {
+                try
+                {
+                    sendAudioFunction.execute(record);
+                }
+                catch (TelegramApiException e)
+                {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public void getFollowers(Message message) throws TelegramApiException
+    {
+        executeFunction.execute(userService.getFollowers(message.getFrom().getId(), message.getChatId()));
+    }
+
+    public void getSubscriptions(Message message) throws TelegramApiException
+    {
+        executeFunction.execute(userService.getSubscriptions(message.getFrom().getId(), message.getChatId()));
+    }
+
+    public void unsubscribe(Message message) throws TelegramApiException
+    {
+        Long followeeId = message.getUserShared().getUserId();
+
+        SendMessage result = new SendMessage();
+        result.setChatId(message.getChatId());
+
+        UserService.UserInfo followee = userService.loadUserInfoById(followeeId);
+        if (followee == null)
+        {
+            result.setText("Selected user doesn't use the bot");
+        }
+        else
+        {
+            int updatedRows = userService.unsubscribe(message, followee);
+            if (updatedRows > 0) {
+                result.setText("Ok, unsubscribed");
+
+                SendMessage unsubscribeNotification = new SendMessage();
+                unsubscribeNotification.setChatId(followee.getChatId());
+                unsubscribeNotification.setText(getUserNameWithAt(message) + " unsubscribed");
+                executeFunction.execute(unsubscribeNotification);
+            } else {
+                result.setText("Nothing changed, are you really subscribed to selected user?");
+            }
+        }
+        result.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        executeFunction.execute(result);
+    }
+
+    public void removeFollower(Message message) throws TelegramApiException
+    {
+        Long userId = message.getUserShared().getUserId();
+        SendMessage result = new SendMessage();
+        result.setChatId(message.getChatId());
+        UserService.UserInfo follower = userService.loadUserInfoById(userId);
+        if (follower == null)
+        {
+            result.setText("Selected user doesn't use the bot");
+        }
+        else
+        {
+            int updatedRows = userService.removeFollower(message, follower);
+            if (updatedRows > 0) {
+                result.setText("Ok, user will no longer receive your updates");
+
+                SendMessage unsubscribeNotification = new SendMessage();
+                unsubscribeNotification.setChatId(follower.getChatId());
+                unsubscribeNotification.setText(getUserNameWithAt(message) + " revoked your subscription");
+                executeFunction.execute(unsubscribeNotification);
+            } else {
+                result.setText("Nothing changed, are you really subscribed to selected user?");
+            }
+        }
+        result.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        executeFunction.execute(result);
+    }
+
+    public void end(Message message) throws TelegramApiException
+    {
+        executeFunction.execute(userService.removeUser(message.getFrom().getId(), message.getChatId()));
+    }
+
+    public void help(Message message) throws TelegramApiException
+    {
+        executeFunction.execute(new SendMessage(message.getChatId().toString(), "This is help"));
+    }
+
+    public void unsupportedResponse(Message message) throws TelegramApiException
+    {
+        executeFunction.execute(new SendMessage(message.getChatId().toString(), "Only voice messages will be recorded"));
+    }
+
+    public void userNotRegistered(Message message) throws TelegramApiException
+    {
+        SendMessage notRegisteredMessage = new SendMessage();
+        notRegisteredMessage.setChatId(message.getChatId());
+        notRegisteredMessage.setText("Send /start to register before using the bot");
+        executeFunction.execute(notRegisteredMessage);
+    }
+
+    public void getManageSubscriptionsMenu(Message message) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(message.getChatId());
+        sendMessage.setText("Choose the option in menu");
+        sendMessage.setReplyMarkup(ButtonsService.getManageSubscriptionsMenu());
+        executeFunction.execute(sendMessage);
+    }
+
+//    public Pair<SendMessage, List<SendAudio>> handleText(Message message, ExecuteFunction execute) throws TelegramApiException {
+//        SendMessage sendMessage = new SendMessage();
+//        Long chatId = message.getChatId();
+//        sendMessage.setChatId(chatId);
+//
+//        String inputMessage = message.getText();
+//        if (CommandOptions.PULL.getCommand().equals(inputMessage)){
+//            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
+//            return new Pair<>(null, records);
+//        } else if (CommandOptions.FOLLOWERS.getCommand().equals(inputMessage)){
+//            SendMessage followers = userService.getFollowers(message.getFrom().getId(), chatId);
+//            return new Pair<>(followers, null);
+//        } else if (CommandOptions.SUBSCRIPTIONS.getCommand().equals(inputMessage)){
+//            SendMessage subscriptions = userService.getSubscriptions(message.getFrom().getId(), chatId);
+//            return new Pair<>(subscriptions, null);
+//        } else if (inputMessage.startsWith(CommandOptions.UNSUBSCRIBE.getCommand())) {
+//            String followeeName = inputMessage.replaceAll(CommandOptions.UNSUBSCRIBE.getCommand(), "").trim();
+//            SendMessage result;
+//            if (followeeName.isEmpty()) {
+//                result = new SendMessage();
+//                result.setChatId(chatId);
+//                result.setText("Specify username in form @user_name");
+//            } else {
+//                result = userService.unsubscribe(message, followeeName);
+//            }
+//            return new Pair<>(result, null);
+//        } else if (inputMessage.startsWith(CommandOptions.REMOVE_FOLLOWER.getCommand())) {
+//            String followerName = inputMessage.replaceAll(CommandOptions.REMOVE_FOLLOWER.getCommand(), "").trim();
+//            SendMessage result;
+//            if (followerName.isEmpty()) {
+//                result = new SendMessage();
+//                result.setChatId(chatId);
+//                result.setText("Specify username in form @user_name");
+//            } else {
+//                result = userService.removeFollower(message, followerName, execute);
+//            }
+//            return new Pair<>(result, null);
+//        } else if (CommandOptions.END.getCommand().equals(inputMessage)) {
+//            SendMessage result = userService.removeUser(message.getFrom().getId(), chatId);
+//            return new Pair<>(result, null);
+//        } else if (inputMessage.startsWith(CommandOptions.HELP.getCommand())) {
+//            SendMessage result = new SendMessage();
+//            result.setChatId(chatId);
+//            result.setText("This is help");
+//            return new Pair<>(result, null);
+//
+//        } else {
+//            sendMessage.setText("You can share only voice messages");
+//        }
+//        return new Pair<>(sendMessage, null);
+//    }
+
+//    public Pair<SendMessage, SendMessage> handleConfirmation(CallbackQuery callbackQuery)
+//    {
+//        String answer = callbackQuery.getData();
+//
+//        SendMessage sendMessage = new SendMessage();
+//        sendMessage.setChatId(callbackQuery.getMessage().getChatId());
+//        SendMessage messageToUser = new SendMessage();
+//        Long foloweeId = callbackQuery.getFrom().getId();
+//        Long userId = userService.getUserByFoloweeId(foloweeId);
+//
+//        if ("Yes".equals(answer))
+//        {
+//            userService.addContact(userId, foloweeId);
+//            sendMessage.setText("User was accepted");
+//            messageToUser.setChatId(userService.getChatIdByUserId(userId));
+//            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " accepted you");
+//        }
+//
+//        if ("No".equals(answer))
+//        {
+//            sendMessage.setText("Ok, subscribe request declined");
+//            messageToUser.setChatId(userService.getChatIdByUserId(userId));
+//            messageToUser.setText("User @" + callbackQuery.getFrom().getUserName() + " declined you");
+//        }
+//        return new Pair<>(sendMessage, messageToUser);
+//    }
 }

@@ -2,6 +2,8 @@ package org.example.bot;
 
 import lombok.SneakyThrows;
 import org.example.config.BotConfig;
+import org.example.enums.BotCommands;
+import org.example.enums.ButtonCommands;
 import org.example.enums.CommandOptions;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
@@ -36,7 +38,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
     public MyTelegramBot(DefaultBotOptions botOptions, BotConfig botConfig, UpdateHandler updateHandler, UserService userService) throws TelegramApiException
     {
-        super(botOptions);
+        super(botOptions, botConfig.getToken());
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
         this.userService = userService;
@@ -54,71 +56,51 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         System.out.println("got message");
         if (update.hasMessage()) {
             Message message = update.getMessage();
-            if (!isRegistered(message.getFrom().getId())) {
-                if (!message.hasText() || !message.getText().equals("/start")) {
-                    SendMessage notRegisteredMessage = new SendMessage();
-                    notRegisteredMessage.setChatId(message.getChatId());
-                    notRegisteredMessage.setText("Send /start to register before using the bot");
-                    execute(notRegisteredMessage);
-                    return;
+            if (!isRegistered(message.getFrom().getId())
+                    && message.hasText()
+                    && !message.getText().startsWith(BotCommands.START.getCommand())) {
+                updateHandler.userNotRegistered(message);
+            }else if (message.hasVoice()){
+                updateHandler.handleVoiceMessage(message);
+            }else if (message.hasText()){
+                String inputMessage = message.getText();
+                if (inputMessage.startsWith(BotCommands.START.getCommand())){
+                    updateHandler.registerUser(message);
+                } else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().equals(inputMessage)){
+                    updateHandler.pull(message);
+                } else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage) || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().equals(inputMessage)){
+                    updateHandler.getManageSubscriptionsMenu(message);
+//                    updateHandler.getSubscriptions(message);
+                } else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
+                    updateHandler.unsubscribe(message);
+                } else if (inputMessage.startsWith(ButtonCommands.REMOVE_SUBSCRIBER.getCommand())) {
+                    updateHandler.removeFollower(message);
+                } else if (BotCommands.END.getCommand().equals(inputMessage)) {
+                    updateHandler.end(message);
+                } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
+                    updateHandler.help(message);
+                } else {
+                    updateHandler.unsupportedResponse(message);
                 }
             }
-            if (message.hasVoice()){
-                SendMessage reply = updateHandler.handleVoiceMessage(message, this::execute);
-                execute(reply);
-            }
-            if (message.hasText()){
-                if (message.getText().startsWith("/play")) {
-
-                    SendAudio sa = new SendAudio();
-                    sa.setAudio(new InputFile("https://mmich.online/nextcloud/index.php/s/bq9d9JZ4YisfNSq/download"));
-                    sa.setAudio(new InputFile("https://bewired.app?from=02.03.2022&to=04.04.2022"));
-                    sa.setChatId(message.getChatId());
-                    execute(sa);
-                    return;
-                }
-                Pair<SendMessage, List<SendAudio>> reply = updateHandler.handleText(message, this::execute);
-                if (reply.getKey() == null){
-                    if (reply.getValue().isEmpty()) {
-                        SendMessage sm = new SendMessage();
-                        sm.setText("No updates yet");
-                        sm.setChatId(message.getChatId());
-                        execute(sm);
-                    } else {
-                        reply.getValue().stream().forEach(record -> {
-                            try
-                            {
-                                execute(record);
-                            }
-                            catch (TelegramApiException e)
-                            {
-                                e.printStackTrace();
-                            }
-                        });
-                    }
-                }
-                else {
-                    execute(reply.getKey());
-                }
-            }
-            if (message.hasContact()){
-                Pair<SendMessage, SendMessage> reply = updateHandler.handleContact(message);
-                execute(reply.getKey());
-                if (reply.getValue() != null)
+            if (message.getUserShared() != null){
+                String requestId = message.getUserShared().getRequestId();
+                if ("1".equals(requestId))
                 {
-                    execute(reply.getValue());
+                    updateHandler.handleContact(message);
+                }
+                if ("2".equals(requestId))
+                {
+                    updateHandler.unsubscribe(message);
+                }
+                if ("3".equals(requestId))
+                {
+                    updateHandler.removeFollower(message);
                 }
             }
         }
-
         if (update.hasCallbackQuery()){
-            Pair<SendMessage, SendMessage> sendMessage = updateHandler.handleConfirmation(update.getCallbackQuery());
-            if (sendMessage.getKey() != null) {
-                execute(sendMessage.getKey());
-            }
-            if (sendMessage.getValue() != null) {
-                execute(sendMessage.getValue());
-            }
+            updateHandler.handleConfirmation(update.getCallbackQuery());
         }
     }
 

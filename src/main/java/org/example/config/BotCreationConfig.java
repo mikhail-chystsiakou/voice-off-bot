@@ -3,6 +3,8 @@ package org.example.config;
 import org.example.bot.MyTelegramBot;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
+import org.example.util.ExecuteFunction;
+import org.example.util.SendAudioFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,5 +32,15 @@ public class BotCreationConfig {
             throw new RuntimeException(e);
         }
         return bot;
+    }
+
+    @Bean
+    ExecuteFunction extractExecuteFunction(MyTelegramBot bot) {
+        return bot::execute;
+    }
+
+    @Bean
+    SendAudioFunction extractSendAudioFunction(MyTelegramBot bot) {
+        return bot::execute;
     }
 }

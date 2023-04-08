@@ -8,6 +8,7 @@ import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
@@ -22,6 +23,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
@@ -40,8 +42,8 @@ public class UserService
         this.jdbcTemplate = dataSourceConfig.jdbcTemplate();
     }
 
-    public int addUser(Long userId, Long chatId, String userName){
-        return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, chatId);
+    public int addUser(Long userId, Long chatId, String userName, String firstName, String lastName){
+        return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, firstName, lastName, chatId);
     }
 
     public int saveAudio(Long userId, String fileId) {
@@ -74,7 +76,14 @@ public class UserService
 
     public Long getUserByFoloweeId(Long foloweeId)
     {
-        return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
+        try
+        {
+            return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            return null;
+        }
     }
 
     public Integer getRequestRecord(Long userId, Long followeeId)
@@ -120,47 +129,55 @@ public class UserService
         return sm;
     }
 
-    public SendMessage unsubscribe(Message message, String followeeName, ExecuteFunction execute) throws TelegramApiException {
-        SendMessage sm = new SendMessage();
-        sm.setChatId(message.getChatId());
-        if (followeeName.startsWith("@")) {
-            followeeName = followeeName.substring(1);
-        }
-        UserInfo followee = loadUserInfoByName(followeeName);
-        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
-        if (updatedRows > 0) {
-            sm.setText("Ok, unsubscribed");
-
-            SendMessage unsubscribeNotification = new SendMessage();
-            unsubscribeNotification.setChatId(followee.getChatId());
-            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " unsubscribed");
-            execute.execute(unsubscribeNotification);
-        } else {
-            sm.setText("Nothing changed, are you really subscribed to @" + followeeName + "?");
-        }
-        return sm;
+    public int unsubscribe(Message message, UserService.UserInfo followee){
+        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
     }
 
-    public SendMessage removeFollower(Message message, String followerName, ExecuteFunction execute) throws TelegramApiException {
-        SendMessage sm = new SendMessage();
-        sm.setChatId(message.getChatId());
-        if (followerName.startsWith("@")) {
-            followerName = followerName.substring(1);
-        }
-        UserInfo follower = loadUserInfoByName(followerName);
-        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
-        if (updatedRows > 0) {
-            sm.setText("Ok, user will no longer receive your updates");
+//    public SendMessage unsubscribe(Message message, String followeeName, ExecuteFunction execute) throws TelegramApiException {
+//        SendMessage sm = new SendMessage();
+//        sm.setChatId(message.getChatId());
+//        if (followeeName.startsWith("@")) {
+//            followeeName = followeeName.substring(1);
+//        }
+//        UserInfo followee = loadUserInfoByName(followeeName);
+//        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
+//        if (updatedRows > 0) {
+//            sm.setText("Ok, unsubscribed");
+//
+//            SendMessage unsubscribeNotification = new SendMessage();
+//            unsubscribeNotification.setChatId(followee.getChatId());
+//            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " unsubscribed");
+//            execute.execute(unsubscribeNotification);
+//        } else {
+//            sm.setText("Nothing changed, are you really subscribed to @" + followeeName + "?");
+//        }
+//        return sm;
+//    }
 
-            SendMessage unsubscribeNotification = new SendMessage();
-            unsubscribeNotification.setChatId(follower.getChatId());
-            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " revoked your subscription");
-            execute.execute(unsubscribeNotification);
-        } else {
-            sm.setText("Nothing changed, are you really subscribed to @" + followerName + "?");
-        }
-        return sm;
+    public int removeFollower(Message message, UserService.UserInfo follower) throws TelegramApiException {
+        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
     }
+
+//    public SendMessage removeFollower(Message message, String followerName, ExecuteFunction execute) throws TelegramApiException {
+//        SendMessage sm = new SendMessage();
+//        sm.setChatId(message.getChatId());
+//        if (followerName.startsWith("@")) {
+//            followerName = followerName.substring(1);
+//        }
+//        UserInfo follower = loadUserInfoByName(followerName);
+//        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
+//        if (updatedRows > 0) {
+//            sm.setText("Ok, user will no longer receive your updates");
+//
+//            SendMessage unsubscribeNotification = new SendMessage();
+//            unsubscribeNotification.setChatId(follower.getChatId());
+//            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " revoked your subscription");
+//            execute.execute(unsubscribeNotification);
+//        } else {
+//            sm.setText("Nothing changed, are you really subscribed to @" + followerName + "?");
+//        }
+//        return sm;
+//    }
 
     public SendMessage removeUser(Long userId, Long chatId) {
         SendMessage sm = new SendMessage();
@@ -295,35 +312,36 @@ public class UserService
         }
     }
 
-    private UserInfo loadUserInfoByName(String userName) {
-        return jdbcTemplate.queryForObject(
-            Queries.GET_USER_ID_BY_NAME.getValue(),
-            (rs, n) -> {
-                Long followeeId = rs.getLong("user_id");
-                String followeeChatId = rs.getString("chat_id");
-                return new UserInfo(followeeId, userName, followeeChatId);
-            },
-            userName
-        );
+    UserService.UserInfo loadUserInfoById(Long userId) {
+        try
+        {
+            return jdbcTemplate.queryForObject(
+                    Queries.GET_USER_ID_BY_ID.getValue(),
+                    (rs, n) -> {
+                        String userName = rs.getString("user_name");
+                        String followeeChatId = rs.getString("chat_id");
+                        return new UserService.UserInfo(userId, followeeChatId);
+                    },
+                    userId
+            );
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            return null;
+        }
     }
 
-    private class UserInfo {
+    class UserInfo {
         Long userId;
-        String userName;
         String chatId;
 
-        public UserInfo(Long userId, String userName, String chatId) {
+        public UserInfo(Long userId, String chatId) {
             this.userId = userId;
-            this.userName = userName;
             this.chatId = chatId;
         }
 
         public Long getUserId() {
             return userId;
-        }
-
-        public String getUserName() {
-            return userName;
         }
 
         public String getChatId() {

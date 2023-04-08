@@ -1,7 +1,16 @@
 package org.example.service;
 
+import org.example.enums.BotCommands;
+import org.example.enums.ButtonCommands;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButtonRequestUser;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 
 import java.util.Arrays;
 
@@ -16,9 +25,58 @@ public class ButtonsService
         inlineKeyboardButtonNo.setText("No");
         inlineKeyboardButtonNo.setCallbackData("No");
 
-
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(inlineKeyboardButtonYes, inlineKeyboardButtonNo)));
         return inlineKeyboardMarkup;
+    }
+
+    public static ReplyKeyboard getInitMenuButtons()
+    {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+
+        KeyboardButton buttonForPull = new KeyboardButton();
+        buttonForPull.setText(ButtonCommands.PULL.getDescription());
+
+        KeyboardButton buttonForManagingSubscriptions = new KeyboardButton();
+        buttonForManagingSubscriptions.setText(ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription());
+
+        keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForPull, buttonForManagingSubscriptions))));
+        keyboardMarkup.setResizeKeyboard(true);
+        return keyboardMarkup;
+    }
+
+    public static ReplyKeyboard getManageSubscriptionsMenu()
+    {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+
+        KeyboardButtonRequestUser keyboardButtonRequestUser1 = new KeyboardButtonRequestUser();
+        keyboardButtonRequestUser1.setRequestId("1");
+        keyboardButtonRequestUser1.setUserIsBot(false);
+
+        KeyboardButtonRequestUser keyboardButtonRequestUser2 = new KeyboardButtonRequestUser();
+        keyboardButtonRequestUser2.setRequestId("2");
+        keyboardButtonRequestUser1.setUserIsBot(false);
+
+        KeyboardButtonRequestUser keyboardButtonRequestUser3 = new KeyboardButtonRequestUser();
+        keyboardButtonRequestUser3.setRequestId("3");
+        keyboardButtonRequestUser1.setUserIsBot(false);
+
+        KeyboardButton buttonForSubscription = new KeyboardButton();
+        buttonForSubscription.setRequestUser(keyboardButtonRequestUser1);
+        buttonForSubscription.setText(ButtonCommands.SUBSCRIBE.getDescription());
+
+        KeyboardButton buttonForUnfollowUser = new KeyboardButton();
+        buttonForUnfollowUser.setRequestUser(keyboardButtonRequestUser2);
+        buttonForUnfollowUser.setText(ButtonCommands.UNSUBSCRIBE.getDescription());
+
+        KeyboardButton buttonForUnsubscribeUser = new KeyboardButton();
+        buttonForUnsubscribeUser.setRequestUser(keyboardButtonRequestUser3);
+        buttonForUnsubscribeUser.setText(ButtonCommands.REMOVE_SUBSCRIBER.getDescription());
+
+        keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForSubscription)),
+                new KeyboardRow(Arrays.asList(buttonForUnfollowUser)),
+                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser))));
+        keyboardMarkup.setOneTimeKeyboard(true);
+        return keyboardMarkup;
     }
 }
