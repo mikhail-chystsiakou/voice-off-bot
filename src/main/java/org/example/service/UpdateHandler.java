@@ -43,12 +43,13 @@ public class UpdateHandler
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
-                executeFunction::execute
+                executeFunction::execute,
+                message.getMessageId()
         );
-
         SendMessage reply = new SendMessage();
         reply.setText("Ok, recorded");
         reply.setChatId(message.getChatId());
+        reply.setReplyMarkup(ButtonsService.getButtonForDeletingRecord(message.getMessageId()));
         executeFunction.execute(reply);
     }
 
@@ -298,6 +299,31 @@ public class UpdateHandler
         sendMessage.setChatId(message.getChatId());
         sendMessage.setText("Choose the option in menu");
         sendMessage.setReplyMarkup(ButtonsService.getManageSubscriptionsMenu());
+        executeFunction.execute(sendMessage);
+    }
+
+    public void removeRecording(CallbackQuery callbackQuery) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(callbackQuery.getMessage().getChatId());
+
+        String messageId = callbackQuery.getData();
+
+        int updatedRows = userService.removeRecordByUserIdAndMessageId(callbackQuery.getFrom().getId(), messageId);
+        if (updatedRows > 0) {
+            sendMessage.setText("The recording was removed");
+        } else {
+            sendMessage.setText("Recording not found");
+        }
+        executeFunction.execute(sendMessage);
+    }
+
+    public void returnMainMenu(Message message) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(message.getChatId());
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        sendMessage.setText("Choose one of the options");
         executeFunction.execute(sendMessage);
     }
 

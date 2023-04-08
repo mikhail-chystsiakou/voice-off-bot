@@ -32,12 +32,12 @@ public class VoiceStorage {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
-    public void storeVoice(long userId, String fileId, int duration, ExecuteFunction execute) {
+    public void storeVoice(long userId, String fileId, int duration, ExecuteFunction execute, Integer messageId) {
 
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
         jdbcTemplate.update(Queries.ADD_AUDIO.getValue(),
-                userId, fileId, duration, sqlTimestamp
+                userId, fileId, duration, sqlTimestamp, messageId
         );
         System.out.println("File " + fileId + " stored to db");
 

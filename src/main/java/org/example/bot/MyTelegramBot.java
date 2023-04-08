@@ -1,27 +1,19 @@
 package org.example.bot;
 
 import lombok.SneakyThrows;
+import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
-import org.example.util.Pair;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Arrays;
@@ -78,6 +70,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.end(message);
                 } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
                     updateHandler.help(message);
+                } else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
+                    updateHandler.returnMainMenu(message);
                 } else {
                     updateHandler.unsupportedResponse(message);
                 }
@@ -99,7 +93,13 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             }
         }
         if (update.hasCallbackQuery()){
-            updateHandler.handleConfirmation(update.getCallbackQuery());
+            String answer = update.getCallbackQuery().getData();
+            if (Constants.YES.equals(answer) || Constants.No.equals(answer)){
+                updateHandler.handleConfirmation(update.getCallbackQuery());
+            }
+            else {
+                updateHandler.removeRecording(update.getCallbackQuery());
+            }
         }
     }
 

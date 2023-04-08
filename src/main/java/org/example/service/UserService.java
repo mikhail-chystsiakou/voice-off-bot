@@ -46,8 +46,8 @@ public class UserService
         return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, firstName, lastName, chatId);
     }
 
-    public int saveAudio(Long userId, String fileId) {
-        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId);
+    public int saveAudio(Long userId, String fileId, Integer messageId) {
+        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId, messageId);
     }
 
     public Long getUserById(Long userId){
@@ -189,6 +189,11 @@ public class UserService
             sm.setText("You are not registered");
         }
         return sm;
+    }
+
+    public int removeRecordByUserIdAndMessageId(Long userId, String messageId)
+    {
+        return jdbcTemplate.update(Queries.REMOVE_LAST_USER_RECORD.getValue(), userId, new Integer(messageId));
     }
 
     private class FolloweePullTimestamp {
