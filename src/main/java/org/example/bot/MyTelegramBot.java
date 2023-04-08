@@ -8,6 +8,7 @@ import org.example.service.UserService;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
@@ -19,22 +20,23 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Component
+//@Component
 public class MyTelegramBot extends TelegramLongPollingBot {
 
     private final String BOT_TOKEN;
     UpdateHandler updateHandler;
     UserService userService;
 
-    @Autowired
-    public MyTelegramBot(BotConfig botConfig, UpdateHandler updateHandler, UserService userService) throws TelegramApiException
+    public MyTelegramBot(DefaultBotOptions botOptions, BotConfig botConfig, UpdateHandler updateHandler, UserService userService) throws TelegramApiException
     {
+        super(botOptions);
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
         this.userService = userService;
@@ -49,6 +51,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
+        System.out.println("got message");
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (!isRegistered(message.getFrom().getId())) {
@@ -61,7 +64,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 }
             }
             if (message.hasVoice()){
-                SendMessage reply = updateHandler.handleVoiceMessage(message);
+                SendMessage reply = updateHandler.handleVoiceMessage(message, this::execute);
                 execute(reply);
             }
             if (message.hasText()){
@@ -74,7 +77,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     execute(sa);
                     return;
                 }
-                Pair<SendMessage, List<SendVoice>> reply = updateHandler.handleText(message, this::execute);
+                Pair<SendMessage, List<SendAudio>> reply = updateHandler.handleText(message, this::execute);
                 if (reply.getKey() == null){
                     if (reply.getValue().isEmpty()) {
                         SendMessage sm = new SendMessage();
@@ -107,6 +110,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 }
             }
         }
+
         if (update.hasCallbackQuery()){
             Pair<SendMessage, SendMessage> sendMessage = updateHandler.handleConfirmation(update.getCallbackQuery());
             if (sendMessage.getKey() != null) {
@@ -127,6 +131,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     public String getBotToken() {
         return BOT_TOKEN;
     }
+
+    public void onRegister() {
+        System.out.println("bot registered");
+    }
+
 
     // Helper method to download voice messages from Telegram servers
     private String downloadVoiceMessage(String fileId) {

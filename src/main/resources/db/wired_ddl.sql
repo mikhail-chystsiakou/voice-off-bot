@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     user_id bigint,
     file_id varchar,
     file_order_number serial,
+    duration bigint,
     recording_timestamp timestamp with time zone default current_timestamp,
 
     constraint audios_pk primary key (user_id, file_order_number)

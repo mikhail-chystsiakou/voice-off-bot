@@ -1,44 +1,59 @@
 package org.example.service;
 
+import org.example.config.BotConfig;
+import org.example.enums.FollowQueries;
+import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
 import org.example.enums.CommandOptions;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.facilities.filedownloader.TelegramFileDownloader;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Voice;
+import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class UpdateHandler
 {
     UserService userService;
+    private final String BOT_TOKEN;
 
     @Autowired
-    public UpdateHandler(UserService userService)
+    VoiceStorage voiceStorage;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public UpdateHandler(BotConfig botConfig, UserService userService)
     {
+        this.BOT_TOKEN = botConfig.getToken();
         this.userService = userService;
     }
 
-    public SendMessage handleVoiceMessage(Message message)
-    {
-        Voice inputVoice = message.getVoice();
+    public SendMessage handleVoiceMessage(Message message, ExecuteFunction execute) throws TelegramApiException {
 
-        String chatId = message.getChatId().toString();
-        String fileId = inputVoice.getFileId();
-        Long userId = message.getFrom().getId();
-        userService.saveAudio(userId, fileId);
+        Voice voice = message.getVoice();
+        voiceStorage.storeVoice(
+                message.getFrom().getId(),
+                voice.getFileId(),
+                voice.getDuration(),
+                execute
+        );
 
         SendMessage reply = new SendMessage();
         reply.setText("Ok, recorded");
-        reply.setChatId(chatId);
+        reply.setChatId(message.getChatId());
         return reply;
     }
 
@@ -75,7 +90,7 @@ public class UpdateHandler
         return new Pair<>(sendMessage, messageForFolowee);
     }
 
-    public Pair<SendMessage, List<SendVoice>> handleText(Message message, ExecuteFunction execute) throws TelegramApiException {
+    public Pair<SendMessage, List<SendAudio>> handleText(Message message, ExecuteFunction execute) throws TelegramApiException {
         SendMessage sendMessage = new SendMessage();
         Long chatId = message.getChatId();
         sendMessage.setChatId(chatId);
@@ -86,7 +101,7 @@ public class UpdateHandler
             String replyMessage = result == 1 ? "You was added to the system. Subscribe to other person by sharing it's contact here." : "You have already registered";
             sendMessage.setText(replyMessage);
         } else if (CommandOptions.PULL.getCommand().equals(inputMessage)){
-            List<SendVoice> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
+            List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), chatId);
             return new Pair<>(null, records);
         } else if (CommandOptions.FOLLOWERS.getCommand().equals(inputMessage)){
             SendMessage followers = userService.getFollowers(message.getFrom().getId(), chatId);
@@ -126,7 +141,7 @@ public class UpdateHandler
             return new Pair<>(result, null);
 
         } else {
-            sendMessage.setText("Only voice messages will be recorded");
+            sendMessage.setText("You can share only voice messages");
         }
         return new Pair<>(sendMessage, null);
     }

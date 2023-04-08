@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.config.BotConfig;
 import org.example.util.ExecuteFunction;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
@@ -9,6 +10,7 @@ import org.example.enums.Queries;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
@@ -17,16 +19,20 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.time.Instant;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
 @Component
 public class UserService
 {
+    private static final String VIRTUAL_TIMESTAMP_PATTERN = "yyyyMMddHHmmssSSS";
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    BotConfig botConfig;
 
     @Autowired
     public UserService(DataSourceConfig dataSourceConfig)
@@ -168,37 +174,101 @@ public class UserService
         return sm;
     }
 
-    public List<SendVoice> pullAllRecordsForUser(Long userId, Long chatId)
+    private class FolloweePullTimestamp {
+        long followeeId;
+        long lastPullTimestamp;
+    }
+
+    private class VoicePart {
+        String recordingDate;
+        long duration;
+    }
+
+    public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
     {
-
-        //u.user_name, ua.file_id, ua.recording_timestamp
-        Stream<Recording> recordings = jdbcTemplate.queryForStream(
-                Queries.PULL_RECORDS_BY_USER_ID.getValue(),
+        Instant lastPullTimestamp = Instant.now();
+        // list of followees with their last pull timestamps
+        // only followees with available recordings selected
+        List<FolloweePullTimestamp> followeesPullTimestamps = jdbcTemplate.queryForStream(
+                Queries.GET_LAST_PULL_TIME.getValue(),
                 (rs, rn) -> {
-                    String userName = rs.getString("user_name");
-                    String fileId = rs.getString("file_id");
-                    Timestamp recordingTimestamp = rs.getTimestamp("recording_timestamp");
-                    return new Recording(userName, fileId, recordingTimestamp);
+                    FolloweePullTimestamp obj = new FolloweePullTimestamp();
+                    obj.followeeId = rs.getLong("followee_id");
+                    obj.lastPullTimestamp = rs.getTimestamp("last_pull_timestamp").getTime();
+
+                    return obj;
                 },
-                userId);
-//        List<String> fileNames = jdbcTemplate.queryForList(Queries.PULL_RECORDS_BY_USER_ID.getValue(), new Object[]{userId}, String.class);
+                Timestamp.from(lastPullTimestamp), userId
+        ).collect(Collectors.toList());
 
-        jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(), userId);
+        List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
+        for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
+            // update last pull timestamp
+            jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(), Timestamp.from(lastPullTimestamp), userId, fpt.followeeId);
 
-        List<SendVoice> voiceList = recordings
-            .map(recording ->
-                 {
-                     SendVoice sendVoice = new SendVoice();
-                     sendVoice.setVoice(new InputFile(recording.getFileId()));
-                     sendVoice.setChatId(chatId);
-                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH:mm");
-                     String formattedTimestamp = sdf.format(recording.getRecordingDate());
-                     sendVoice.setCaption(formattedTimestamp + " from @" + recording.getUserName());
-                     return sendVoice;
-                 })
-            .collect(Collectors.toList());
 
-        return voiceList;
+            // collect recordings
+            SimpleDateFormat sdf = new SimpleDateFormat(VIRTUAL_TIMESTAMP_PATTERN);
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String timeFrom = sdf.format(new Date(fpt.lastPullTimestamp));
+            String timeTo = sdf.format(new Date(lastPullTimestamp.toEpochMilli()));
+            String virtualFileName = botConfig.getVfsHost() + "/voice/"
+                    + fpt.followeeId + "_" + timeFrom + "_" + timeTo;
+//            SendVoice voice = new SendVoice();
+            SendAudio sendAudio = new SendAudio();
+            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, lastPullTimestamp.toEpochMilli());
+            if (voiceParts.size() > 1) {
+                sendAudio.setCaption(getAudioCaption(voiceParts));
+            }
+            sendAudio.setChatId(chatId);
+            InputFile audio = new InputFile(virtualFileName);
+//            InputFile audio = new InputFile("https://mmich.online/nextcloud/index.php/s/inLj8tXbTQDdmGD/download");
+//            InputFile audio = new InputFile("https://mmich.online/nextcloud/index.php/s/KxYsAwac2E9tcQr/download");
+            sendAudio.setAudio(audio);
+            sendAudio.setTitle("Recordings from mich");
+            InputFile image = new InputFile("https://picsum.photos/200/200");
+            sendAudio.setThumb(image);
+            System.out.println("Downloading file " + virtualFileName + " for user " + userId + " from user" + fpt.followeeId);
+            voices.add(sendAudio);
+        }
+
+        return voices;
+    }
+
+    private String getAudioCaption(List<VoicePart> voiceParts) {
+        long start = 0;
+        StringJoiner sj = new StringJoiner("\n");
+        for (VoicePart vp : voiceParts) {
+            long hours = start / 3600;
+            long seconds = start % 60;
+            long minutes = (start - (hours * 3600)) / 60;
+            String caption = "";
+            if (hours > 0) {
+                caption += hours + ":";
+            }
+            caption += String.format("%02d:%02d - %s", minutes, seconds, vp.recordingDate);
+            sj.add(caption);
+            start += vp.duration;
+        }
+
+        return sj.toString();
+    }
+
+    /**
+     * grouped by day. durations are summed, recording timestamp is the timestamp of earliest recording
+     */
+    private List<VoicePart> getVoiceParts(long userId, long from, long to) {
+        return jdbcTemplate.queryForStream(
+                Queries.GET_VOICE_PARTS.getValue(),
+                (rs, rn) -> {
+                    VoicePart vp = new VoicePart();
+                    vp.recordingDate = rs.getString("recording_day");
+                    vp.duration = rs.getLong("sum_duration");
+                    return vp;
+                },
+                userId, new Timestamp(from), new Timestamp(to)
+                ).collect(Collectors.toList());
+
     }
 
     private class Recording {

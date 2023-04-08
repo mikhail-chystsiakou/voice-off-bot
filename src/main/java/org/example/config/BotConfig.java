@@ -20,4 +20,13 @@ public class BotConfig {
 
     @Value("${bot.owner}")
     Long ownerId;
+
+    @Value("${bot.storage.voice}")
+    String voiceStoragePath;
+
+    @Value("${bot.vfs}")
+    String vfsHost;
+
+    @Value("${api.url}")
+    String apiUrl;
 }
