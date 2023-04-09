@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.Constants;
+import org.example.config.BotConfig;
 import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
 import org.example.util.SendAudioFunction;
@@ -8,12 +9,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import javax.imageio.ImageIO;
+import java.awt.image.RenderedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class UpdateHandler
@@ -35,6 +44,9 @@ public class UpdateHandler
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    BotConfig botConfig;
 
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
@@ -127,7 +139,7 @@ public class UpdateHandler
         executeFunction.execute(messageToUser);
     }
 
-    public void registerUser(Message message) throws TelegramApiException
+    public void registerUser(Message message) throws TelegramApiException, IOException
     {
         User user = message.getFrom();
         int result = userService.addUser(
@@ -137,10 +149,37 @@ public class UpdateHandler
                 user.getFirstName(),
                 user.getLastName()
         );
+
+        GetUserProfilePhotos guph = new GetUserProfilePhotos();
+
+        guph.setUserId(message.getFrom().getId());
+        guph.setOffset(0);
+        guph.setLimit(1);
+        UserProfilePhotos photos = executeFunction.execute(guph);
+
+        Optional<PhotoSize> photo = photos.getPhotos().stream().map(i -> i.stream().findFirst()).findFirst().get();
+
+        if (photo.isPresent()){
+            saveImage(photo.get(), message.getFrom().getId());
+        }
+
         String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
         SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
         sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
+    }
+
+    private void saveImage(PhotoSize photoSize, Long userId) throws IOException, TelegramApiException
+    {
+        GetFile getFileCommand = new GetFile();
+        getFileCommand.setFileId(photoSize.getFileId());
+        org.telegram.telegrambots.meta.api.objects.File downloadedFile
+                    = executeFunction.execute(getFileCommand);
+        String sourceFilename = downloadedFile.getFilePath();
+
+        RenderedImage renderedImage = ImageIO.read(new URL("https://api.telegram.org/file/bot" + botConfig.getToken() + "/" + sourceFilename)) ;
+        File file = new File("C:\\Users\\voly0621\\Documents\\wired\\img\\" + userId.toString() + ".jpg");
+        ImageIO.write(renderedImage, "jpg", file);
     }
 
     private String getUserName(Message message)
