@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaBotMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -43,7 +45,7 @@ public class UpdateHandler
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
-                executeFunction::execute
+                executeFunction
         );
 
         SendMessage reply = new SendMessage();
@@ -198,6 +200,11 @@ public class UpdateHandler
                     e.printStackTrace();
                 }
             });
+            boolean moreAvailable = userService.isDataAvailable(message.getFrom().getId());
+            if (moreAvailable) {
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "More recordings available"));
+            }
+
         }
     }
 

@@ -8,24 +8,29 @@ import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.methods.send.*;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaAudio;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaDocument;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 //@Component
@@ -34,13 +39,19 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     private final String BOT_TOKEN;
     UpdateHandler updateHandler;
     UserService userService;
+    TaskExecutor taskExecutor;
 
-    public MyTelegramBot(DefaultBotOptions botOptions, BotConfig botConfig, UpdateHandler updateHandler, UserService userService) throws TelegramApiException
+    public MyTelegramBot(DefaultBotOptions botOptions,
+                         BotConfig botConfig,
+                         UpdateHandler updateHandler,
+                         UserService userService,
+                         TaskExecutor taskExecutor) throws TelegramApiException
     {
         super(botOptions, botConfig.getToken());
         BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
         this.userService = userService;
+        this.taskExecutor = taskExecutor;
 
         List<BotCommand> botCommands = Arrays.stream(BotCommands.values())
                 .map(co -> new BotCommand(co.getCommand(), co.getDescription()))
@@ -53,6 +64,17 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         System.out.println("got message");
+        taskExecutor.execute(() -> {
+            try {
+                handleUpdate(update);
+            } catch (TelegramApiException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+    }
+
+    private void handleUpdate(Update update) throws TelegramApiException {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (!isRegistered(message.getFrom().getId())

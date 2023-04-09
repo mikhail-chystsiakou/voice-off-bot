@@ -30,7 +30,8 @@ public enum Queries
             " order by to_char(recording_timestamp, 'YYYY.MM.DD')"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
-    GET_USER_ID_BY_ID("select user_id, chat_id from users where user_id = ?");
+    GET_USER_ID_BY_ID("select user_id, chat_id from users where user_id = ?"),
+    ADD_PULL_STAT("insert into pull_stats(user_id, followee_id, last_pull_timestamp, pull_timestamp) values(?, ?, ?, ?)");
 
     String value;
 

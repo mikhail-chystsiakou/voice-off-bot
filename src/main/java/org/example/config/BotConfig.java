@@ -21,8 +21,17 @@ public class BotConfig {
     @Value("${bot.owner}")
     Long ownerId;
 
-    @Value("${bot.storage.voice}")
-    String voiceStoragePath;
+    @Value("${bot.storage.path}")
+    String storagePath;
+
+    @Value("${bot.storage.path.voices}")
+    String voicesPath;
+
+    @Value("${bot.storage.path.profilePictures}")
+    String profilePicturesPath;
+
+    @Value("${bot.storage.path.tmp}")
+    String tmpPath;
 
     @Value("${bot.vfs}")
     String vfsHost;

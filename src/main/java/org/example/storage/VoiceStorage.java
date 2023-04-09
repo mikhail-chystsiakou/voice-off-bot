@@ -54,7 +54,7 @@ public class VoiceStorage {
 //            throw new RuntimeException(e);
         }
 
-        String pathPrefix = botConfig.getVoiceStoragePath();
+        String pathPrefix = botConfig.getStoragePath() + botConfig.getVoicesPath();
         if (!pathPrefix.endsWith(File.separator)) {
             pathPrefix += File.separator;
         }
@@ -80,7 +80,7 @@ public class VoiceStorage {
         SimpleDateFormat sdf = new SimpleDateFormat("dd_HH_mm_ss_SSS");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String timePrefix = sdf.format(new Date(timestamp));
-        return timePrefix + "_" + duration + "_" + fileId + ".oga";
+        return timePrefix + "_" + duration + "_" + fileId + ".opus";
     }
 
     private boolean moveFileAbsolute(String from, String to) {

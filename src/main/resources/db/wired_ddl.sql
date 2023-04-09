@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS user_audios
 
     constraint audios_pk primary key (user_id, file_order_number)
 );
+CREATE INDEX user_audios_timestamp_index ON user_audios (user_id, recording_timestamp);
 
 CREATE TABLE IF NOT EXISTS follow_requests
 (
@@ -40,3 +41,14 @@ CREATE TABLE IF NOT EXISTS user_subscriptions
     constraint subscriptions_to_user_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade,
     constraint subscriptions_to_followee_fk FOREIGN KEY(followee_id) REFERENCES users (user_id) on delete cascade
 );
+
+create table pull_stats
+(
+    pull_stat_id    serial,
+    user_id             bigint,
+    followee_id         bigint,
+    last_pull_timestamp timestamp with time zone,
+    pull_timestamp      timestamp with time zone
+);
+
+CREATE INDEX index_name ON pull_stats (user_id, followee_id, pull_timestamp);

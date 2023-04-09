@@ -1,6 +1,8 @@
 package org.example.service;
 
 import org.example.config.BotConfig;
+import org.example.ffmpeg.FFMPEG;
+import org.example.ffmpeg.FFMPEGResult;
 import org.example.util.ExecuteFunction;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
@@ -11,13 +13,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
+import org.telegram.telegrambots.meta.api.methods.send.*;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -25,6 +28,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.example.enums.Queries.ADD_PULL_STAT;
 import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
 @Component
@@ -35,6 +39,9 @@ public class UserService
 
     @Autowired
     BotConfig botConfig;
+
+    @Autowired
+    FFMPEG ffmpeg;
 
     @Autowired
     public UserService(DataSourceConfig dataSourceConfig)
@@ -191,19 +198,33 @@ public class UserService
         return sm;
     }
 
-    private class FolloweePullTimestamp {
+    public static class FolloweePullTimestamp {
         long followeeId;
         long lastPullTimestamp;
     }
 
-    private class VoicePart {
+    public static class VoicePart {
         String recordingDate;
         long duration;
     }
 
+    public boolean isDataAvailable(Long userId) {
+        return jdbcTemplate.queryForStream(
+                Queries.GET_LAST_PULL_TIME.getValue(),
+                (rs, rn) -> {
+                    FolloweePullTimestamp obj = new FolloweePullTimestamp();
+                    obj.followeeId = rs.getLong("followee_id");
+                    obj.lastPullTimestamp = rs.getTimestamp("last_pull_timestamp").getTime();
+
+                    return obj;
+                },
+                Timestamp.from(Instant.now()), userId
+        ).findAny().isPresent();
+    }
+
     public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
     {
-        Instant lastPullTimestamp = Instant.now();
+        Instant nextPullTimestamp = Instant.now();
         // list of followees with their last pull timestamps
         // only followees with available recordings selected
         List<FolloweePullTimestamp> followeesPullTimestamps = jdbcTemplate.queryForStream(
@@ -215,42 +236,53 @@ public class UserService
 
                     return obj;
                 },
-                Timestamp.from(lastPullTimestamp), userId
+                Timestamp.from(nextPullTimestamp), userId
         ).collect(Collectors.toList());
 
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
             // update last pull timestamp
-            jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(), Timestamp.from(lastPullTimestamp), userId, fpt.followeeId);
+            jdbcTemplate.update(ADD_PULL_STAT.getValue(),userId, fpt.followeeId, new Timestamp(fpt.lastPullTimestamp), Timestamp.from(nextPullTimestamp));
 
 
             // collect recordings
             SimpleDateFormat sdf = new SimpleDateFormat(VIRTUAL_TIMESTAMP_PATTERN);
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             String timeFrom = sdf.format(new Date(fpt.lastPullTimestamp));
-            String timeTo = sdf.format(new Date(lastPullTimestamp.toEpochMilli()));
+            String timeTo = sdf.format(new Date(nextPullTimestamp.toEpochMilli()));
             String virtualFileName = botConfig.getVfsHost() + "/voice/"
                     + fpt.followeeId + "_" + timeFrom + "_" + timeTo;
-//            SendVoice voice = new SendVoice();
+            FFMPEGResult localFile = ffmpeg.produceFiles(virtualFileName);
+            long timestamp = localFile.getLastFileRecordingTimestamp();
+            System.out.println("Last recording timestamp: " + sdf.format(timestamp) + " - " + timestamp);
+            jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
+                    new Timestamp(timestamp), userId, fpt.followeeId
+            );
+
             SendAudio sendAudio = new SendAudio();
-            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, lastPullTimestamp.toEpochMilli());
+
+            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp.toEpochMilli());
             if (voiceParts.size() > 1) {
                 sendAudio.setCaption(getAudioCaption(voiceParts));
             }
+
+
+            InputFile in = new InputFile();
+            in.setMedia(new File(localFile.getAbsoluteFileURL()), localFile.getAudioTitle());
+            sendAudio.setAudio(in);
+            sendAudio.setTitle(localFile.getAudioTitle());
+
             sendAudio.setChatId(chatId);
-            InputFile audio = new InputFile(virtualFileName);
-//            InputFile audio = new InputFile("https://mmich.online/nextcloud/index.php/s/inLj8tXbTQDdmGD/download");
-//            InputFile audio = new InputFile("https://mmich.online/nextcloud/index.php/s/KxYsAwac2E9tcQr/download");
-            sendAudio.setAudio(audio);
-            sendAudio.setTitle("Recordings from mich");
-            InputFile image = new InputFile("https://picsum.photos/200/200");
-            sendAudio.setThumb(image);
-            System.out.println("Downloading file " + virtualFileName + " for user " + userId + " from user" + fpt.followeeId);
+            sendAudio.setPerformer(localFile.getAudioAuthor());
+            sendAudio.setThumb(new InputFile(new File("/home/bewired/tmp/thumb.jpg"), "cover"));
+            System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + fpt.followeeId);
             voices.add(sendAudio);
         }
 
+
         return voices;
     }
+
 
     private String getAudioCaption(List<VoicePart> voiceParts) {
         long start = 0;
