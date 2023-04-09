@@ -1,20 +1,30 @@
 package org.example.service;
 
 import org.example.Constants;
+import org.example.config.BotConfig;
 import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
+import org.example.util.FileUtils;
 import org.example.util.SendAudioFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
-import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaBotMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
+import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos;
+import org.telegram.telegrambots.meta.api.objects.Voice;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -38,6 +48,12 @@ public class UpdateHandler
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    BotConfig botConfig;
+
+    @Autowired
+    FileUtils fileUtils;
+
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
         Voice voice = message.getVoice();
@@ -45,12 +61,14 @@ public class UpdateHandler
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
-                executeFunction
+                executeFunction::execute,
+                message.getMessageId()
         );
 
         SendMessage reply = new SendMessage();
         reply.setText("Ok, recorded");
         reply.setChatId(message.getChatId());
+        reply.setReplyMarkup(ButtonsService.getButtonForDeletingRecord(message.getMessageId()));
         executeFunction.execute(reply);
     }
 
@@ -128,7 +146,7 @@ public class UpdateHandler
         executeFunction.execute(messageToUser);
     }
 
-    public void registerUser(Message message) throws TelegramApiException
+    public void registerUser(Message message) throws TelegramApiException, IOException
     {
         User user = message.getFrom();
         int result = userService.addUser(
@@ -138,10 +156,67 @@ public class UpdateHandler
                 user.getFirstName(),
                 user.getLastName()
         );
+
+        redownloadUserPhoto(message.getFrom().getId());
+
+
         String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
         SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
         sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
+    }
+
+    private void redownloadUserPhoto(Long userId) throws TelegramApiException {
+        GetUserProfilePhotos guph = new GetUserProfilePhotos();
+
+        guph.setUserId(userId);
+        guph.setOffset(0);
+        guph.setLimit(1);
+        UserProfilePhotos photos = executeFunction.execute(guph);
+
+        if (photos.getPhotos().isEmpty()) {
+            return;
+        }
+        List<PhotoSize> photoSizes = photos.getPhotos().get(0);
+        if (photoSizes.isEmpty()) {
+            return;
+        }
+        PhotoSize photo = photoSizes.get(0);
+        if (photo == null) return;
+
+        if (!isUserPhotoExists(userId, photo.getFileId())){
+            removePreviousImages(userId);
+            saveImage(photo, userId);
+        }
+    }
+
+    private void removePreviousImages(Long userId)
+    {
+        String folderPath = botConfig.getStoragePath() + botConfig.getProfilePicturesPath();
+        File folder = new File(folderPath);
+        final File[] files = folder.listFiles((dir,name) -> name.matches(userId.toString() + ".*?"));
+        if (files == null) return;
+        Arrays.stream(files).forEach(File::delete);
+    }
+
+    private boolean isUserPhotoExists(Long userId, String photoId)
+    {
+        String filePath = fileUtils.getProfilePicturePath(userId, photoId);
+        File file = new File(filePath);
+        return file.exists();
+    }
+
+    private void saveImage(PhotoSize photoSize, long userId) throws TelegramApiException
+    {
+        GetFile getFileCommand = new GetFile();
+        getFileCommand.setFileId(photoSize.getFileId());
+        org.telegram.telegrambots.meta.api.objects.File downloadedFile
+                    = executeFunction.execute(getFileCommand);
+        String sourceFilename = downloadedFile.getFilePath();
+
+        String destFilename = fileUtils.getProfilePicturePath(userId, photoSize.getFileId());
+        System.out.println("Copying profile picture from " + sourceFilename + " to " + destFilename);
+        fileUtils.moveFileAbsolute(sourceFilename, destFilename);
     }
 
     private String getUserName(Message message)
@@ -183,8 +258,9 @@ public class UpdateHandler
         return message.getFrom().getFirstName();
     }
 
-    public void pull(Message message) throws TelegramApiException
+    public void pull(Message message) throws TelegramApiException, IOException
     {
+        redownloadUserPhoto(message.getFrom().getId());
         List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
         if (records.isEmpty())
         {
@@ -200,11 +276,9 @@ public class UpdateHandler
                     e.printStackTrace();
                 }
             });
-            boolean moreAvailable = userService.isDataAvailable(message.getFrom().getId());
-            if (moreAvailable) {
-                executeFunction.execute(new SendMessage(message.getChatId().toString(), "More recordings available"));
+            if (userService.isDataAvailable(message.getFrom().getId())) {
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available..."));
             }
-
         }
     }
 
@@ -305,6 +379,31 @@ public class UpdateHandler
         sendMessage.setChatId(message.getChatId());
         sendMessage.setText("Choose the option in menu");
         sendMessage.setReplyMarkup(ButtonsService.getManageSubscriptionsMenu());
+        executeFunction.execute(sendMessage);
+    }
+
+    public void removeRecording(CallbackQuery callbackQuery) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(callbackQuery.getMessage().getChatId());
+
+        String messageId = callbackQuery.getData();
+
+        int updatedRows = userService.removeRecordByUserIdAndMessageId(callbackQuery.getFrom().getId(), messageId);
+        if (updatedRows > 0) {
+            sendMessage.setText("The recording was removed");
+        } else {
+            sendMessage.setText("Recording not found");
+        }
+        executeFunction.execute(sendMessage);
+    }
+
+    public void returnMainMenu(Message message) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(message.getChatId());
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        sendMessage.setText("Choose one of the options");
         executeFunction.execute(sendMessage);
     }
 

@@ -2,8 +2,8 @@ CREATE TABLE IF NOT EXISTS users
 (
     user_id bigint NOT NULL ,
     username varchar,
-    user_first_name varchar,
-    user_last_name varchar,
+    first_name varchar,
+    last_name varchar,
     registered_date timestamp without time zone,
     chat_id bigint,
 
@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     file_id varchar,
     file_order_number serial,
     duration bigint,
+    message_id bigint,
     recording_timestamp timestamp with time zone default current_timestamp,
 
     constraint audios_pk primary key (user_id, file_order_number)

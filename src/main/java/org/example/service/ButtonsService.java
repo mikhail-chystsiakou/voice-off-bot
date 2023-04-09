@@ -73,10 +73,24 @@ public class ButtonsService
         buttonForUnsubscribeUser.setRequestUser(keyboardButtonRequestUser3);
         buttonForUnsubscribeUser.setText(ButtonCommands.REMOVE_SUBSCRIBER.getDescription());
 
+        KeyboardButton buttonReturnToPreviousMenu = new KeyboardButton();
+        buttonReturnToPreviousMenu.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+
         keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForSubscription)),
                 new KeyboardRow(Arrays.asList(buttonForUnfollowUser)),
-                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser))));
+                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser)),
+                new KeyboardRow(Arrays.asList(buttonReturnToPreviousMenu))));
         keyboardMarkup.setOneTimeKeyboard(true);
         return keyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup getButtonForDeletingRecord(Integer messageId){
+        InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+        deleteButton.setText(ButtonCommands.REMOVE_RECORDING.getDescription());
+        deleteButton.setCallbackData(messageId.toString());
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(deleteButton)));
+        return inlineKeyboardMarkup;
     }
 }

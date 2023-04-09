@@ -1,9 +1,11 @@
 package org.example.storage;
 
+import lombok.AllArgsConstructor;
 import org.example.bot.MyTelegramBot;
 import org.example.config.BotConfig;
 import org.example.enums.Queries;
 import org.example.util.ExecuteFunction;
+import org.example.util.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -25,6 +27,8 @@ import java.util.TimeZone;
 @Component
 public class VoiceStorage {
     private final static String FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga";
+    @Autowired
+    FileUtils fileUtils;
 
     @Autowired
     BotConfig botConfig;
@@ -32,12 +36,12 @@ public class VoiceStorage {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
-    public void storeVoice(long userId, String fileId, int duration, ExecuteFunction execute) {
+    public void storeVoice(long userId, String fileId, int duration, ExecuteFunction execute, Integer messageId) {
 
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
         jdbcTemplate.update(Queries.ADD_AUDIO.getValue(),
-                userId, fileId, duration, sqlTimestamp
+                userId, fileId, duration, sqlTimestamp, messageId
         );
         System.out.println("File " + fileId + " stored to db");
 
@@ -69,10 +73,9 @@ public class VoiceStorage {
         System.out.println("Copying from " + sourceFilename + " to " + destFilename);
         try {
             Files.createDirectories(Paths.get(prefix));
-            moveFileAbsolute(sourceFilename, destFilename);
+            fileUtils.moveFileAbsolute(sourceFilename, destFilename);
         } catch (IOException e) {
             e.printStackTrace();
-            return;
         }
     }
 
@@ -83,9 +86,4 @@ public class VoiceStorage {
         return timePrefix + "_" + duration + "_" + fileId + ".opus";
     }
 
-    private boolean moveFileAbsolute(String from, String to) {
-        File fromFile = new File(from);
-        File toFile = new File(to);
-        return fromFile.renameTo(toFile);
-    }
 }

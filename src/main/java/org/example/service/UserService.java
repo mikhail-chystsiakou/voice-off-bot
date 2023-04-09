@@ -9,18 +9,19 @@ import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
+import org.example.util.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.send.*;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -38,6 +39,9 @@ public class UserService
     JdbcTemplate jdbcTemplate;
 
     @Autowired
+    FileUtils fileUtils;
+
+    @Autowired
     BotConfig botConfig;
 
     @Autowired
@@ -53,8 +57,8 @@ public class UserService
         return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, firstName, lastName, chatId);
     }
 
-    public int saveAudio(Long userId, String fileId) {
-        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId);
+    public int saveAudio(Long userId, String fileId, Integer messageId) {
+        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId, messageId);
     }
 
     public Long getUserById(Long userId){
@@ -198,7 +202,12 @@ public class UserService
         return sm;
     }
 
-    public static class FolloweePullTimestamp {
+    public int removeRecordByUserIdAndMessageId(Long userId, String messageId)
+    {
+        return jdbcTemplate.update(Queries.REMOVE_LAST_USER_RECORD.getValue(), userId, Integer.valueOf(messageId));
+    }
+
+    private static class FolloweePullTimestamp {
         long followeeId;
         long lastPullTimestamp;
     }
@@ -244,7 +253,6 @@ public class UserService
             // update last pull timestamp
             jdbcTemplate.update(ADD_PULL_STAT.getValue(),userId, fpt.followeeId, new Timestamp(fpt.lastPullTimestamp), Timestamp.from(nextPullTimestamp));
 
-
             // collect recordings
             SimpleDateFormat sdf = new SimpleDateFormat(VIRTUAL_TIMESTAMP_PATTERN);
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -256,7 +264,7 @@ public class UserService
             long timestamp = localFile.getLastFileRecordingTimestamp();
             System.out.println("Last recording timestamp: " + sdf.format(timestamp) + " - " + timestamp);
             jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
-                    new Timestamp(timestamp), userId, fpt.followeeId
+                new Timestamp(timestamp), userId, fpt.followeeId
             );
 
             SendAudio sendAudio = new SendAudio();
@@ -274,15 +282,15 @@ public class UserService
 
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
-            sendAudio.setThumb(new InputFile(new File("/home/bewired/tmp/thumb.jpg"), "cover"));
+            String profilePicture = fileUtils.getProfilePicturePath(fpt.followeeId);
+            if (profilePicture !=null) {
+                sendAudio.setThumb(new InputFile(new File(profilePicture), "cover"));
+            }
             System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + fpt.followeeId);
             voices.add(sendAudio);
         }
-
-
         return voices;
     }
-
 
     private String getAudioCaption(List<VoicePart> voiceParts) {
         long start = 0;

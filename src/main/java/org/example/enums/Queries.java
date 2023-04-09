@@ -11,7 +11,7 @@ public enum Queries
     ADD_REQUEST_TO_CONFIRM("INSERT INTO follow_requests(user_id, followee_id) VALUES(?, ?) ON CONFLICT DO NOTHING"),
     GET_USER_ID_BY_FOLLOWEE_ID("SELECT user_id FROM follow_requests where followee_id = ?"),
     REMOVE_REQUEST_TO_CONFIRM("DELETE FROM follow_requests where user_id = ? and followee_id = ?"),
-    ADD_AUDIO("INSERT INTO user_audios(user_id, file_id, duration, recording_timestamp) VALUES(?, ?, ?, ?) ON CONFLICT DO NOTHING"),
+    ADD_AUDIO("INSERT INTO user_audios(user_id, file_id, duration, recording_timestamp, message_id) VALUES(?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"),
     GET_LAST_PULL_TIME("SELECT followee_id, last_pull_timestamp\n" +
             "FROM user_subscriptions us, user_audios ua\n" +
             "WHERE ua.user_id = us.followee_id\n" +
@@ -30,8 +30,9 @@ public enum Queries
             " order by to_char(recording_timestamp, 'YYYY.MM.DD')"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
+    ADD_PULL_STAT("insert into pull_stats(user_id, followee_id, last_pull_timestamp, pull_timestamp) values(?, ?, ?, ?)"),
     GET_USER_ID_BY_ID("select user_id, chat_id from users where user_id = ?"),
-    ADD_PULL_STAT("insert into pull_stats(user_id, followee_id, last_pull_timestamp, pull_timestamp) values(?, ?, ?, ?)");
+    REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?");
 
     String value;
 
