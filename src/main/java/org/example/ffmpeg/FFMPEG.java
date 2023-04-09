@@ -211,7 +211,7 @@ public class FFMPEG {
         List<FileInfo> result = new ArrayList<>();
 
         long sumDuration = 0;
-        final long maxDuration = 2 * 60 * 60; // 2 hours
+        final long maxDuration = 1 * 60 * 60; // 2 hour max
         for (FileInfo fi : parts) {
             sumDuration += fi.getDuration();
             if (sumDuration == 0 || sumDuration < maxDuration) {

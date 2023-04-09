@@ -7,7 +7,7 @@ public enum ButtonCommands
     REMOVE_SUBSCRIBER("/removefollower", "Unsubscribe user"),
     UNSUBSCRIBE("/unsubscribe", "Unfollow user"),
     SUBSCRIBE("/subscribe", "Subscribe to user"),
-    REMOVE_RECORDING("/removerecording", "Remove recording"),
+    REMOVE_RECORDING("/removerecording", "Remove this recording"),
     RETURN_TO_MAIN_MENU("/return", "Return to main menu");
 
     String command;

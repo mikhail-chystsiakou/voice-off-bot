@@ -3,10 +3,7 @@ package org.example.service;
 import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.storage.VoiceStorage;
-import org.example.util.ExecuteFunction;
-import org.example.util.FileUtils;
-import org.example.util.SendAudioFunction;
-import org.example.util.ThreadLocalMap;
+import org.example.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -57,6 +54,9 @@ public class UpdateHandler
 
     @Autowired
     StatsService statsService;
+
+    @Autowired
+    PullProcessingSet pullProcessingSet;
 
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
@@ -264,9 +264,17 @@ public class UpdateHandler
 
     public void pull(Message message) throws TelegramApiException, IOException
     {
+        long userId = message.getFrom().getId();
+        if (!pullProcessingSet.getAndSetPullProcessingForUser(userId)) {
+            executeFunction.execute(new SendMessage(message.getChatId().toString(), "Preparing audios, please wait"));
+            return;
+        }
+        statsService.init();
         statsService.pullStart();
-        redownloadUserPhoto(message.getFrom().getId());
-        List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
+        statsService.setUserId(userId);
+        redownloadUserPhoto(userId);
+        executeFunction.execute(new SendMessage(message.getChatId().toString(), "Preparing audios for you..."));
+        List<SendAudio> records = userService.pullAllRecordsForUser(userId, message.getChatId());
         if (records.isEmpty())
         {
             executeFunction.execute(new SendMessage(message.getChatId().toString(), "No updates"));
@@ -275,9 +283,12 @@ public class UpdateHandler
                 try
                 {
                     sendAudioFunction.execute(record);
+                    pullProcessingSet.finishProcessingForUser(userId);
+                    // time to remove temp file
                 }
-                catch (TelegramApiException e)
+                catch (Exception e)
                 {
+                    statsService.cleanup();
                     e.printStackTrace();
                 }
             });
@@ -287,6 +298,8 @@ public class UpdateHandler
         }
         statsService.pullEnd();
         statsService.storePullStatistics();
+        statsService.cleanup();
+
     }
 
     public void getFollowers(Message message) throws TelegramApiException

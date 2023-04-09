@@ -51,6 +51,9 @@ create table pull_stats
     followee_id         bigint,
     last_pull_timestamp timestamp with time zone,
     pull_timestamp      timestamp with time zone,
+    start_timestamp     timestamp with time zone,
+    end_timestamp       timestamp with time zone,
+    file_size          bigint,
     processing_time     interval
 );
 

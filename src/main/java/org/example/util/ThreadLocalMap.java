@@ -29,9 +29,9 @@ public class ThreadLocalMap {
         return tmpFiles.getOrDefault(threadId, new ConcurrentHashMap<>()).get(key);
     }
 
-    public void clear(String key) {
+    public void clear() {
         long threadId = Thread.currentThread().getId();
-        tmpFiles.getOrDefault(threadId, new ConcurrentHashMap<>()).remove(key);
+        tmpFiles.remove(threadId);
     }
 }
 

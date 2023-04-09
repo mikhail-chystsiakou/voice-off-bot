@@ -255,6 +255,8 @@ public class UserService
 
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
+            statsService.setFolloweeId(fpt.followeeId);
+            statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
 
 
             // collect recordings
@@ -266,6 +268,7 @@ public class UserService
                     + fpt.followeeId + "_" + timeFrom + "_" + timeTo;
             FFMPEGResult localFile = ffmpeg.produceFiles(virtualFileName);
             long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
+            statsService.setPullTimestamp(lastFileRecordingTimestamp);
             System.out.println("Last recording timestamp: " + sdf.format(lastFileRecordingTimestamp) + " - " + lastFileRecordingTimestamp);
             jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
                 new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
@@ -285,16 +288,11 @@ public class UserService
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            statsService.setFileSize(fileSize);
             InputFile in = new InputFile();
             in.setMedia(filePath.toFile(), localFile.getAudioTitle());
             sendAudio.setAudio(in);
             sendAudio.setTitle(localFile.getAudioTitle());
-            statsService.setFileSize(fileSize);
-            // update last pull timestamp
-            statsService.setUserId(userId);
-            statsService.setFolloweeId(fpt.followeeId);
-            statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
-            statsService.setPullTimestamp(lastFileRecordingTimestamp);
 
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
