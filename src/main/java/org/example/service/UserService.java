@@ -212,6 +212,26 @@ public class UserService
         return jdbcTemplate.update(Queries.REMOVE_LAST_USER_RECORD.getValue(), userId, Integer.valueOf(messageId));
     }
 
+    public Map<String, String> getUserNamesByUserId(Long userId)
+    {
+        return jdbcTemplate.queryForStream(
+            Queries.GET_USER_NAMES_BY_USER_ID.getValue(),
+            (rs, rn) -> {
+                Map<String, String> result = new HashMap<>();
+                result.put("username", rs.getString("username"));
+                result.put("first_name", rs.getString("first_name"));
+                result.put("last_name", rs.getString("last_name"));
+                return result;
+            },
+            userId
+        ).findFirst().orElse(null);
+    }
+
+    public int updateNameColumn(Long userId, String columnName, String valueToSet)
+    {
+        return jdbcTemplate.update("update users set " + columnName + " = ? where user_id = ?", valueToSet, userId);
+    }
+
     private static class FolloweePullTimestamp {
         long followeeId;
         long lastPullTimestamp;

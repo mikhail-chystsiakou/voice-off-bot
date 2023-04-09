@@ -6,7 +6,6 @@ import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.example.util.SendAudioFunction;
-import org.example.util.ThreadLocalMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,18 +14,13 @@ import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.PhotoSize;
-import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos;
-import org.telegram.telegrambots.meta.api.objects.Voice;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class UpdateHandler
@@ -262,10 +256,11 @@ public class UpdateHandler
         return message.getFrom().getFirstName();
     }
 
-    public void pull(Message message) throws TelegramApiException, IOException
+    public void pull(Message message) throws TelegramApiException
     {
         statsService.pullStart();
         redownloadUserPhoto(message.getFrom().getId());
+        changeUserName(message.getFrom());
         List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
         if (records.isEmpty())
         {
@@ -287,6 +282,38 @@ public class UpdateHandler
         }
         statsService.pullEnd();
         statsService.storePullStatistics();
+    }
+
+    private void changeUserName(User user)
+    {
+        Map<String, String> existingUserNames = userService.getUserNamesByUserId(user.getId());
+
+        if (existingUserNames != null)
+        {
+            String existingUserName = existingUserNames.get("username");
+            String existingUserFirstName = existingUserNames.get("first_name");
+            String existingLastName = existingUserNames.get("last_name");
+
+            if (user.getUserName() != null && (existingUserName == null || !user.getUserName().equals(existingUserName))){
+                userService.updateNameColumn(user.getId(), "username", user.getUserName());
+            }
+
+            if (user.getUserName() == null && existingUserName != null){
+                userService.updateNameColumn(user.getId(), "username", null);
+            }
+
+            if (!user.getFirstName().equals(existingUserFirstName)){
+                userService.updateNameColumn(user.getId(), "first_name", user.getFirstName());
+            }
+
+            if (user.getLastName() != null && (existingLastName == null || !user.getLastName().equals(existingLastName))){
+                userService.updateNameColumn(user.getId(), "last_name", user.getLastName());
+            }
+
+            if (user.getLastName() == null && existingLastName != null){
+                userService.updateNameColumn(user.getId(), "last_name", null);
+            }
+        }
     }
 
     public void getFollowers(Message message) throws TelegramApiException
