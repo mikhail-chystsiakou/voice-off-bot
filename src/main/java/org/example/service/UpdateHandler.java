@@ -6,6 +6,7 @@ import org.example.storage.VoiceStorage;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.example.util.SendAudioFunction;
+import org.example.util.ThreadLocalMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -53,6 +54,9 @@ public class UpdateHandler
 
     @Autowired
     FileUtils fileUtils;
+
+    @Autowired
+    StatsService statsService;
 
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
@@ -260,6 +264,7 @@ public class UpdateHandler
 
     public void pull(Message message) throws TelegramApiException, IOException
     {
+        statsService.pullStart();
         redownloadUserPhoto(message.getFrom().getId());
         List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
         if (records.isEmpty())
@@ -280,6 +285,8 @@ public class UpdateHandler
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available..."));
             }
         }
+        statsService.pullEnd();
+        statsService.storePullStatistics();
     }
 
     public void getFollowers(Message message) throws TelegramApiException

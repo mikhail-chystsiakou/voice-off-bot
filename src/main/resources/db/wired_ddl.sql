@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     file_order_number serial,
     duration bigint,
     message_id bigint,
+    file_size bigint, -- in bytes
     recording_timestamp timestamp with time zone default current_timestamp,
 
     constraint audios_pk primary key (user_id, file_order_number)
@@ -49,7 +50,8 @@ create table pull_stats
     user_id             bigint,
     followee_id         bigint,
     last_pull_timestamp timestamp with time zone,
-    pull_timestamp      timestamp with time zone
+    pull_timestamp      timestamp with time zone,
+    processing_time     interval
 );
 
 CREATE INDEX index_name ON pull_stats (user_id, followee_id, pull_timestamp);

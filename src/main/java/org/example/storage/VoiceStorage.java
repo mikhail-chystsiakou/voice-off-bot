@@ -15,6 +15,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -40,10 +41,7 @@ public class VoiceStorage {
 
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
-        jdbcTemplate.update(Queries.ADD_AUDIO.getValue(),
-                userId, fileId, duration, sqlTimestamp, messageId
-        );
-        System.out.println("File " + fileId + " stored to db");
+
 
         String sourceFilename = "";
         GetFile getFileCommand = new GetFile();
@@ -71,12 +69,20 @@ public class VoiceStorage {
 
         String destFilename = prefix + createFileName(recordingTimestamp, duration, fileId);
         System.out.println("Copying from " + sourceFilename + " to " + destFilename);
+        long fileSize = 0;
         try {
             Files.createDirectories(Paths.get(prefix));
             fileUtils.moveFileAbsolute(sourceFilename, destFilename);
+            Path filePath = Paths.get(destFilename);
+            fileSize = Files.size(filePath);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        jdbcTemplate.update(Queries.ADD_AUDIO.getValue(),
+                userId, fileId, duration, sqlTimestamp, messageId, fileSize
+        );
+        System.out.println("File " + fileId + " stored to db");
     }
 
     private String createFileName(long timestamp, int duration, String fileId) {

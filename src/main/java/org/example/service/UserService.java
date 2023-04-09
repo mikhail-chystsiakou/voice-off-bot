@@ -22,14 +22,16 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static org.example.enums.Queries.ADD_PULL_STAT;
 import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
 @Component
@@ -46,6 +48,9 @@ public class UserService
 
     @Autowired
     FFMPEG ffmpeg;
+
+    @Autowired
+    StatsService statsService;
 
     @Autowired
     public UserService(DataSourceConfig dataSourceConfig)
@@ -250,8 +255,7 @@ public class UserService
 
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
-            // update last pull timestamp
-            jdbcTemplate.update(ADD_PULL_STAT.getValue(),userId, fpt.followeeId, new Timestamp(fpt.lastPullTimestamp), Timestamp.from(nextPullTimestamp));
+
 
             // collect recordings
             SimpleDateFormat sdf = new SimpleDateFormat(VIRTUAL_TIMESTAMP_PATTERN);
@@ -261,10 +265,10 @@ public class UserService
             String virtualFileName = botConfig.getVfsHost() + "/voice/"
                     + fpt.followeeId + "_" + timeFrom + "_" + timeTo;
             FFMPEGResult localFile = ffmpeg.produceFiles(virtualFileName);
-            long timestamp = localFile.getLastFileRecordingTimestamp();
-            System.out.println("Last recording timestamp: " + sdf.format(timestamp) + " - " + timestamp);
+            long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
+            System.out.println("Last recording timestamp: " + sdf.format(lastFileRecordingTimestamp) + " - " + lastFileRecordingTimestamp);
             jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
-                new Timestamp(timestamp), userId, fpt.followeeId
+                new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
             );
 
             SendAudio sendAudio = new SendAudio();
@@ -274,11 +278,23 @@ public class UserService
                 sendAudio.setCaption(getAudioCaption(voiceParts));
             }
 
-
+            Path filePath = Paths.get(localFile.getAbsoluteFileURL());
+            long fileSize = 0;
+            try {
+                fileSize = Files.size(filePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             InputFile in = new InputFile();
-            in.setMedia(new File(localFile.getAbsoluteFileURL()), localFile.getAudioTitle());
+            in.setMedia(filePath.toFile(), localFile.getAudioTitle());
             sendAudio.setAudio(in);
             sendAudio.setTitle(localFile.getAudioTitle());
+            statsService.setFileSize(fileSize);
+            // update last pull timestamp
+            statsService.setUserId(userId);
+            statsService.setFolloweeId(fpt.followeeId);
+            statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
+            statsService.setPullTimestamp(lastFileRecordingTimestamp);
 
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
