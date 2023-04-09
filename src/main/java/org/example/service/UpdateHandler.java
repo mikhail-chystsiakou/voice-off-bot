@@ -21,6 +21,7 @@ import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -150,23 +151,43 @@ public class UpdateHandler
                 user.getLastName()
         );
 
+        checkUserPhoto(message.getFrom().getId());
+
+
+        String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
+        SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        executeFunction.execute(sendMessage);
+    }
+
+    private void checkUserPhoto(Long userId) throws TelegramApiException, IOException
+    {
         GetUserProfilePhotos guph = new GetUserProfilePhotos();
 
-        guph.setUserId(message.getFrom().getId());
+        guph.setUserId(userId);
         guph.setOffset(0);
         guph.setLimit(1);
         UserProfilePhotos photos = executeFunction.execute(guph);
 
         Optional<PhotoSize> photo = photos.getPhotos().stream().map(i -> i.stream().findFirst()).findFirst().get();
 
-        if (photo.isPresent()){
-            saveImage(photo.get(), message.getFrom().getId());
+        if (photo.isPresent() && !isUserPhotoExists(userId, photo.get().getFileId())){
+            removePreviousImages(userId);
+            saveImage(photo.get(), userId);
         }
+    }
 
-        String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
-        SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
-        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
-        executeFunction.execute(sendMessage);
+    private void removePreviousImages(Long userId)
+    {
+        File folder = new File("C:\\Users\\voly0621\\Documents\\wired\\img\\");
+        final File[] files = folder.listFiles((dir,name) -> name.matches(userId.toString() + ".*?"));
+        Arrays.stream(files).forEach(File::delete);
+    }
+
+    private boolean isUserPhotoExists(Long userId, String photoId)
+    {
+        File file = new File("C:\\Users\\voly0621\\Documents\\wired\\img\\" + userId.toString() + ";" + photoId + ".jpg");
+        return file.exists();
     }
 
     private void saveImage(PhotoSize photoSize, Long userId) throws IOException, TelegramApiException
@@ -178,7 +199,7 @@ public class UpdateHandler
         String sourceFilename = downloadedFile.getFilePath();
 
         RenderedImage renderedImage = ImageIO.read(new URL("https://api.telegram.org/file/bot" + botConfig.getToken() + "/" + sourceFilename)) ;
-        File file = new File("C:\\Users\\voly0621\\Documents\\wired\\img\\" + userId.toString() + ".jpg");
+        File file = new File("C:\\Users\\voly0621\\Documents\\wired\\img\\" + userId.toString() + ";" + photoSize.getFileId() + ".jpg");
         ImageIO.write(renderedImage, "jpg", file);
     }
 
@@ -221,8 +242,9 @@ public class UpdateHandler
         return message.getFrom().getFirstName();
     }
 
-    public void pull(Message message) throws TelegramApiException
+    public void pull(Message message) throws TelegramApiException, IOException
     {
+        checkUserPhoto(message.getFrom().getId());
         List<SendAudio> records = userService.pullAllRecordsForUser(message.getFrom().getId(), message.getChatId());
         if (records.isEmpty())
         {
