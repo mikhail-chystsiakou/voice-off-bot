@@ -7,6 +7,8 @@ import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -22,10 +24,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-//@Component
 public class MyTelegramBot extends TelegramLongPollingBot {
+    private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
 
-    private final String BOT_TOKEN;
     UpdateHandler updateHandler;
     UserService userService;
     TaskExecutor taskExecutor;
@@ -37,7 +38,6 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                          TaskExecutor taskExecutor) throws TelegramApiException
     {
         super(botOptions, botConfig.getToken());
-        BOT_TOKEN = botConfig.getToken();
         this.updateHandler = updateHandler;
         this.userService = userService;
         this.taskExecutor = taskExecutor;
@@ -52,18 +52,19 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        System.out.println("got message");
+        logger.trace("Got message: {}", update);
         taskExecutor.execute(() -> {
             try {
                 handleUpdate(update);
-            } catch (TelegramApiException | IOException e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                logger.error("Top-level exception", e);
             }
         });
 
     }
 
     private void handleUpdate(Update update) throws TelegramApiException, IOException {
+        logger.trace("Start processing message with id '{}'", update.getUpdateId());
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (!isRegistered(message.getFrom().getId())) {
@@ -122,6 +123,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 updateHandler.removeRecording(update.getCallbackQuery());
             }
         }
+        logger.trace("Finish processing message with id '{}'", update.getUpdateId());
     }
 
     @Override
@@ -129,20 +131,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         return "YourBotUsername";
     }
 
-    @Override
-    public String getBotToken() {
-        return BOT_TOKEN;
-    }
-
     public void onRegister() {
         System.out.println("bot registered");
-    }
-
-
-    // Helper method to download voice messages from Telegram servers
-    private String downloadVoiceMessage(String fileId) {
-        // Replace with your code to download the file
-        return "/path/to/your/file";
     }
 
     private boolean isRegistered(Long userId) {

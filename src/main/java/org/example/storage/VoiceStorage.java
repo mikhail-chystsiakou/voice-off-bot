@@ -6,6 +6,8 @@ import org.example.config.BotConfig;
 import org.example.enums.Queries;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,8 @@ import java.util.TimeZone;
 
 @Component
 public class VoiceStorage {
+    private static final Logger logger = LoggerFactory.getLogger(VoiceStorage.class);
+
     private final static String FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga";
     @Autowired
     FileUtils fileUtils;
@@ -38,7 +42,7 @@ public class VoiceStorage {
     JdbcTemplate jdbcTemplate;
 
     public void storeVoice(long userId, String fileId, int duration, ExecuteFunction execute, Integer messageId) {
-
+        logger.debug("Storing voice for user: {}", userId);
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
 

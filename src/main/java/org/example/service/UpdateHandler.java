@@ -4,6 +4,8 @@ import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.storage.VoiceStorage;
 import org.example.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,8 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class UpdateHandler
-{
+public class UpdateHandler {
+    private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
 
     @Autowired
     UserService userService;
@@ -79,9 +81,9 @@ public class UpdateHandler
 
     public void handleContact(Message message) throws TelegramApiException
     {
-        Long userId = message.getFrom().getId();
-        Long contactId = message.getUserShared().getUserId();
-        Long chatId = message.getChatId();
+        long userId = message.getFrom().getId();
+        long contactId = message.getUserShared().getUserId();
+        long chatId = message.getChatId();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
@@ -102,7 +104,7 @@ public class UpdateHandler
         SendMessage messageForFolowee = new SendMessage();
         messageForFolowee.setChatId(foloweeChatId);
         messageForFolowee.setText("Hi! " + getUserNameWithAt(message) + " send request to follow you. Do you confirm?");
-        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId.toString()));
+        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription());
 
         sendMessage.setText("Your request was sent");
 
@@ -117,6 +119,9 @@ public class UpdateHandler
     public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
     {
         String[] data = callbackQuery.getData().split("_");
+        logger.debug(Arrays.toString(data));
+        System.out.println(callbackQuery.getData());
+        System.out.println(Arrays.toString(data));
 
         String answer = data[0];
         Long userId = Long.valueOf(data[1]);
@@ -155,8 +160,9 @@ public class UpdateHandler
                 user.getFirstName(),
                 user.getLastName()
         );
+        logger.info("User registered: {}", user);
 
-        redownloadUserPhoto(message.getFrom().getId());
+        redownloadUserPhoto(user.getId());
 
 
         String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
@@ -166,6 +172,7 @@ public class UpdateHandler
     }
 
     private void redownloadUserPhoto(Long userId) throws TelegramApiException {
+        logger.trace("Trying to re-download profile photo of user with id '{}'", userId);
         GetUserProfilePhotos guph = new GetUserProfilePhotos();
 
         guph.setUserId(userId);
@@ -174,14 +181,19 @@ public class UpdateHandler
         UserProfilePhotos photos = executeFunction.execute(guph);
 
         if (photos.getPhotos().isEmpty()) {
+            logger.trace("No photos available for user '{}'", userId);
             return;
         }
         List<PhotoSize> photoSizes = photos.getPhotos().get(0);
         if (photoSizes.isEmpty()) {
+            logger.trace("No photo sizes available for user '{}'", userId);
             return;
         }
         PhotoSize photo = photoSizes.get(0);
-        if (photo == null) return;
+        if (photo == null) {
+            logger.trace("No photo size available for user '{}'", userId);
+            return;
+        }
 
         if (!isUserPhotoExists(userId, photo.getFileId())){
             removePreviousImages(userId);
@@ -191,11 +203,18 @@ public class UpdateHandler
 
     private void removePreviousImages(Long userId)
     {
+        logger.trace("Removing old images for user '{}'", userId);
         String folderPath = botConfig.getStoragePath() + botConfig.getProfilePicturesPath();
         File folder = new File(folderPath);
         final File[] files = folder.listFiles((dir,name) -> name.matches(userId.toString() + ".*?"));
-        if (files == null) return;
-        Arrays.stream(files).forEach(File::delete);
+        if (files == null) {
+            logger.trace("No old images for user '{}'", userId);
+            return;
+        }
+        Arrays.stream(files).forEach((f) -> {
+            boolean result = f.delete();
+            logger.debug("Removing old image of user {}, {}: {}", userId, f.getAbsolutePath(), result);
+        });
     }
 
     private boolean isUserPhotoExists(Long userId, String photoId)
@@ -214,7 +233,7 @@ public class UpdateHandler
         String sourceFilename = downloadedFile.getFilePath();
 
         String destFilename = fileUtils.getProfilePicturePath(userId, photoSize.getFileId());
-        System.out.println("Copying profile picture from " + sourceFilename + " to " + destFilename);
+        logger.debug("Copying profile picture from {} to {}", sourceFilename, destFilename);
         fileUtils.moveFileAbsolute(sourceFilename, destFilename);
     }
 
@@ -412,6 +431,7 @@ public class UpdateHandler
 
     public void userNotRegistered(Message message) throws TelegramApiException
     {
+        logger.trace("Sending not-registered warning reply to message {}", message);
         SendMessage notRegisteredMessage = new SendMessage();
         notRegisteredMessage.setChatId(message.getChatId());
         notRegisteredMessage.setText("Send /start before using the bot");
