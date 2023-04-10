@@ -104,7 +104,7 @@ public class UpdateHandler {
         SendMessage messageForFolowee = new SendMessage();
         messageForFolowee.setChatId(foloweeChatId);
         messageForFolowee.setText("Hi! " + getUserNameWithAt(message) + " send request to follow you. Do you confirm?");
-        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription());
+        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId));
 
         sendMessage.setText("Your request was sent");
 

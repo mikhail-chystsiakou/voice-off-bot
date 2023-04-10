@@ -13,7 +13,7 @@ import java.util.Arrays;
 
 public class ButtonsService
 {
-    public static InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(String userId){
+    public static InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(long userId){
         InlineKeyboardButton inlineKeyboardButtonYes = new InlineKeyboardButton();
         inlineKeyboardButtonYes.setText("Yes");
         inlineKeyboardButtonYes.setCallbackData("Yes_" + userId);
