@@ -13,14 +13,14 @@ import java.util.Arrays;
 
 public class ButtonsService
 {
-    public static InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(){
+    public static InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(String userId){
         InlineKeyboardButton inlineKeyboardButtonYes = new InlineKeyboardButton();
         inlineKeyboardButtonYes.setText("Yes");
-        inlineKeyboardButtonYes.setCallbackData("Yes");
+        inlineKeyboardButtonYes.setCallbackData("Yes_" + userId);
 
         InlineKeyboardButton inlineKeyboardButtonNo = new InlineKeyboardButton();
         inlineKeyboardButtonNo.setText("No");
-        inlineKeyboardButtonNo.setCallbackData("No");
+        inlineKeyboardButtonNo.setCallbackData("No_" + userId);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(inlineKeyboardButtonYes, inlineKeyboardButtonNo)));
