@@ -1,16 +1,13 @@
 package org.example.service;
 
-import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButtonRequestUser;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
-import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 
 import java.util.Arrays;
 
@@ -76,10 +73,8 @@ public class ButtonsService
         KeyboardButton buttonReturnToPreviousMenu = new KeyboardButton();
         buttonReturnToPreviousMenu.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
 
-        keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForSubscription)),
-                new KeyboardRow(Arrays.asList(buttonForUnfollowUser)),
-                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser)),
-                new KeyboardRow(Arrays.asList(buttonReturnToPreviousMenu))));
+        keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForSubscription, buttonForUnfollowUser)),
+                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser, buttonReturnToPreviousMenu))));
         keyboardMarkup.setOneTimeKeyboard(true);
         return keyboardMarkup;
     }
