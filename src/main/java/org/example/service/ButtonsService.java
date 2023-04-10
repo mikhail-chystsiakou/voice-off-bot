@@ -75,7 +75,7 @@ public class ButtonsService
 
         keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForSubscription, buttonForUnfollowUser)),
                 new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser, buttonReturnToPreviousMenu))));
-        keyboardMarkup.setOneTimeKeyboard(true);
+        keyboardMarkup.setResizeKeyboard(true);
         return keyboardMarkup;
     }
 
