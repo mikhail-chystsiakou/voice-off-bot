@@ -23,7 +23,7 @@ public class FileUtils {
         String folderPath = botConfig.getStoragePath() + botConfig.getProfilePicturesPath();
         File folder = new File(folderPath);
         final File[] files = folder.listFiles((dir,name) -> name.matches(userId + ".*?"));
-        if (files == null) return null;
+        if (files == null || files.length == 0) return null;
         return files[0].getAbsolutePath();
     }
 

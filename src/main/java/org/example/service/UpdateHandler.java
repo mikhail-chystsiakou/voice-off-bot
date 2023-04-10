@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class UpdateHandler
@@ -273,22 +274,21 @@ public class UpdateHandler
         statsService.pullStart();
         statsService.setUserId(userId);
         redownloadUserPhoto(userId);
-        executeFunction.execute(new SendMessage(message.getChatId().toString(), "Preparing audios for you..."));
-        List<SendAudio> records = userService.pullAllRecordsForUser(userId, message.getChatId());
-        if (records.isEmpty())
+        changeUserName(message.getFrom());
+        if (!userService.isDataAvailable(userId))
         {
             executeFunction.execute(new SendMessage(message.getChatId().toString(), "No updates"));
         }else {
+            executeFunction.execute(new SendMessage(message.getChatId().toString(), "Preparing audios for you..."));
+            List<SendAudio> records = userService.pullAllRecordsForUser(userId, message.getChatId());
             records.forEach(record -> {
                 try
                 {
                     sendAudioFunction.execute(record);
-                    pullProcessingSet.finishProcessingForUser(userId);
-                    // time to remove temp file
+                    userService.cleanup(record);
                 }
-                catch (Exception e)
+                catch (TelegramApiException e)
                 {
-                    statsService.cleanup();
                     e.printStackTrace();
                 }
             });
@@ -298,8 +298,39 @@ public class UpdateHandler
         }
         statsService.pullEnd();
         statsService.storePullStatistics();
-        statsService.cleanup();
+        pullProcessingSet.finishProcessingForUser(userId);
+    }
 
+    private void changeUserName(User user)
+    {
+        Map<String, String> existingUserNames = userService.getUserNamesByUserId(user.getId());
+
+        if (existingUserNames != null)
+        {
+            String existingUserName = existingUserNames.get("username");
+            String existingUserFirstName = existingUserNames.get("first_name");
+            String existingLastName = existingUserNames.get("last_name");
+
+            if (user.getUserName() != null && (existingUserName == null || !user.getUserName().equals(existingUserName))){
+                userService.updateNameColumn(user.getId(), "username", user.getUserName());
+            }
+
+            if (user.getUserName() == null && existingUserName != null){
+                userService.updateNameColumn(user.getId(), "username", null);
+            }
+
+            if (!user.getFirstName().equals(existingUserFirstName)){
+                userService.updateNameColumn(user.getId(), "first_name", user.getFirstName());
+            }
+
+            if (user.getLastName() != null && (existingLastName == null || !user.getLastName().equals(existingLastName))){
+                userService.updateNameColumn(user.getId(), "last_name", user.getLastName());
+            }
+
+            if (user.getLastName() == null && existingLastName != null){
+                userService.updateNameColumn(user.getId(), "last_name", null);
+            }
+        }
     }
 
     public void getFollowers(Message message) throws TelegramApiException
@@ -389,7 +420,7 @@ public class UpdateHandler
     {
         SendMessage notRegisteredMessage = new SendMessage();
         notRegisteredMessage.setChatId(message.getChatId());
-        notRegisteredMessage.setText("Send /start to register before using the bot");
+        notRegisteredMessage.setText("Send /start before using the bot");
         executeFunction.execute(notRegisteredMessage);
     }
 
@@ -411,7 +442,7 @@ public class UpdateHandler
 
         int updatedRows = userService.removeRecordByUserIdAndMessageId(callbackQuery.getFrom().getId(), messageId);
         if (updatedRows > 0) {
-            sendMessage.setText("The recording was removed");
+            sendMessage.setText("Ok, removed");
         } else {
             sendMessage.setText("Recording not found");
         }

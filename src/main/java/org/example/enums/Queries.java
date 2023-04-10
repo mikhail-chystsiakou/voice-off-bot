@@ -31,7 +31,8 @@ public enum Queries
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
     GET_USER_ID_BY_ID("select user_id, chat_id from users where user_id = ?"),
-    REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?");
+    REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?"),
+    GET_USER_NAMES_BY_USER_ID("select username, first_name, last_name from users where user_id = ?");
 
     String value;
 

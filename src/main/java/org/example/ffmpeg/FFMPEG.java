@@ -31,7 +31,6 @@ public class FFMPEG {
     private static final String FILE_LOCATION_PATTERN = "echo $''file \\''{0}\\''''";
     private static final String FILE_DATE_PATTERN = "yyyy" + File.separator + "MM" + File.separator + "dd_HH_mm_ss_SSS";
 
-
     @Autowired
     JdbcTemplate jdbcTemplate;
 
@@ -43,10 +42,11 @@ public class FFMPEG {
         String osName = System.getProperty("os.name");
     }
 
-    public FFMPEGResult produceFiles(String virtualFile) {
+    public FFMPEGResult produceFiles(long userId, long from, long to) {
         String tempStoragePath = botConfig.getStoragePath() + botConfig.getTmpPath() + File.separator;
 
-        VirtualFileInfo virtualFileInfo = loadVirtualFile(virtualFile);
+        VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, to);
+        System.out.println("VirtualFileInfo: " + virtualFileInfo);
 
         String outputFileSuffix = tempStoragePath + System.currentTimeMillis() + "_" + new Random().nextInt(9_999_999);
         String outputFile = outputFileSuffix + ".opus";
@@ -111,26 +111,8 @@ public class FFMPEG {
     /**
      * @param url in form of USERID_DATEFROM_DATETO.ogg
      */
-    private VirtualFileInfo loadVirtualFile(String url) {
-        Matcher m = VIRTUAL_FILE_REGEXP.matcher(url);
-        if (!m.find()) {
-            throw new IllegalArgumentException("Can't parse file from " + url);
-        }
-        long userId = Long.parseLong(m.group("userId"));
-        String dateFromString = m.group("dateFrom");
-        String dateToString = m.group("dateTo");
-        long dateFrom;
-        long dateTo;
-        SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
-
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        try {
-            dateFrom = sdf.parse(dateFromString).getTime();
-            dateTo = sdf.parse(dateToString).getTime();
-        } catch (ParseException e) {
-            throw new IllegalArgumentException("Can't parse date from " + url);
-        }
-        VirtualFileInfo result = new VirtualFileInfo(userId, dateFrom, dateTo);
+    private VirtualFileInfo loadVirtualFile(long userId, long from, long to) {
+        VirtualFileInfo result = new VirtualFileInfo(userId, from, to);
         jdbcTemplate.query("select username, first_name, last_name from users where user_id = ?",
                 (rs) -> {
                     result.setAuthorUserName(rs.getString("username"));
@@ -202,25 +184,27 @@ public class FFMPEG {
                     String fileId = rs.getString("file_id");
                     int duration = Integer.parseInt(rs.getString("duration"));
                     long recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
-                    return new FileInfo(userId, fileId, duration, recordingTimestamp);
+                    FileInfo fi = new FileInfo(userId, fileId, duration, recordingTimestamp);
+                    System.out.println("found file info: " + fi);
+                    return fi;
                 },
                 virtualFileInfo.getUserId(),
                 new Timestamp(virtualFileInfo.getDateFrom()),
                 new Timestamp(virtualFileInfo.getDateTo())
         ).collect(Collectors.toList());
         List<FileInfo> result = new ArrayList<>();
-
+        System.out.println("Total items found : " + Arrays.toString(parts.toArray()));
         long sumDuration = 0;
         final long maxDuration = 1 * 60 * 60; // 2 hour max
         for (FileInfo fi : parts) {
             sumDuration += fi.getDuration();
-            if (sumDuration == 0 || sumDuration < maxDuration) {
+            if (result.isEmpty() || sumDuration < maxDuration) {
                 result.add(fi);
             } else {
                 break;
             }
         }
-        System.out.println(Arrays.toString(result.toArray()));
+        System.out.println("Items after 1h filtration: " + Arrays.toString(result.toArray()));
         return result;
     }
 

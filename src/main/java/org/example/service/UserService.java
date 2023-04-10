@@ -1,5 +1,6 @@
 package org.example.service;
 
+import lombok.Data;
 import org.example.config.BotConfig;
 import org.example.ffmpeg.FFMPEG;
 import org.example.ffmpeg.FFMPEGResult;
@@ -212,6 +213,27 @@ public class UserService
         return jdbcTemplate.update(Queries.REMOVE_LAST_USER_RECORD.getValue(), userId, Integer.valueOf(messageId));
     }
 
+    public Map<String, String> getUserNamesByUserId(Long userId)
+    {
+        return jdbcTemplate.queryForStream(
+            Queries.GET_USER_NAMES_BY_USER_ID.getValue(),
+            (rs, rn) -> {
+                Map<String, String> result = new HashMap<>();
+                result.put("username", rs.getString("username"));
+                result.put("first_name", rs.getString("first_name"));
+                result.put("last_name", rs.getString("last_name"));
+                return result;
+            },
+            userId
+        ).findFirst().orElse(null);
+    }
+
+    public int updateNameColumn(Long userId, String columnName, String valueToSet)
+    {
+        return jdbcTemplate.update("update users set " + columnName + " = ? where user_id = ?", valueToSet, userId);
+    }
+
+    @Data
     private static class FolloweePullTimestamp {
         long followeeId;
         long lastPullTimestamp;
@@ -238,7 +260,7 @@ public class UserService
 
     public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
     {
-        Instant nextPullTimestamp = Instant.now();
+        long nextPullTimestamp = System.currentTimeMillis();
         // list of followees with their last pull timestamps
         // only followees with available recordings selected
         List<FolloweePullTimestamp> followeesPullTimestamps = jdbcTemplate.queryForStream(
@@ -250,33 +272,27 @@ public class UserService
 
                     return obj;
                 },
-                Timestamp.from(nextPullTimestamp), userId
+                new Timestamp(nextPullTimestamp), userId
         ).collect(Collectors.toList());
 
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
+            System.out.println(fpt);
             statsService.setFolloweeId(fpt.followeeId);
             statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
 
-
             // collect recordings
-            SimpleDateFormat sdf = new SimpleDateFormat(VIRTUAL_TIMESTAMP_PATTERN);
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String timeFrom = sdf.format(new Date(fpt.lastPullTimestamp));
-            String timeTo = sdf.format(new Date(nextPullTimestamp.toEpochMilli()));
-            String virtualFileName = botConfig.getVfsHost() + "/voice/"
-                    + fpt.followeeId + "_" + timeFrom + "_" + timeTo;
-            FFMPEGResult localFile = ffmpeg.produceFiles(virtualFileName);
+            FFMPEGResult localFile = ffmpeg.produceFiles(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
             long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
             statsService.setPullTimestamp(lastFileRecordingTimestamp);
-            System.out.println("Last recording timestamp: " + sdf.format(lastFileRecordingTimestamp) + " - " + lastFileRecordingTimestamp);
+            System.out.println("Last recording timestamp: " + new Timestamp(lastFileRecordingTimestamp));
             jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
                 new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
             );
 
             SendAudio sendAudio = new SendAudio();
 
-            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp.toEpochMilli());
+            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
             if (voiceParts.size() > 1) {
                 sendAudio.setCaption(getAudioCaption(voiceParts));
             }
@@ -288,6 +304,7 @@ public class UserService
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            System.out.println("setting pull file size " + fileSize);
             statsService.setFileSize(fileSize);
             InputFile in = new InputFile();
             in.setMedia(filePath.toFile(), localFile.getAudioTitle());
@@ -304,6 +321,17 @@ public class UserService
             voices.add(sendAudio);
         }
         return voices;
+    }
+
+    public void cleanup(SendAudio sendAudio) {
+        String filePath = sendAudio.getFile().getNewMediaFile().getAbsolutePath();
+        try {
+            System.out.println("Deleting temp path: " + filePath);
+            Files.delete(Path.of(filePath));
+            Files.delete(Path.of(filePath.replaceFirst("(\\.\\w+)$", ".list")));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String getAudioCaption(List<VoicePart> voiceParts) {
@@ -372,7 +400,6 @@ public class UserService
             return jdbcTemplate.queryForObject(
                     Queries.GET_USER_ID_BY_ID.getValue(),
                     (rs, n) -> {
-                        String userName = rs.getString("user_name");
                         String followeeChatId = rs.getString("chat_id");
                         return new UserService.UserInfo(userId, followeeChatId);
                     },

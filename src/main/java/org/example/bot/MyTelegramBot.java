@@ -66,11 +66,13 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     private void handleUpdate(Update update) throws TelegramApiException, IOException {
         if (update.hasMessage()) {
             Message message = update.getMessage();
-            if (!isRegistered(message.getFrom().getId())
-                    && message.hasText()
-                    && !message.getText().startsWith(BotCommands.START.getCommand())) {
-                updateHandler.userNotRegistered(message);
-            }else if (message.hasVoice()){
+            if (!isRegistered(message.getFrom().getId())) {
+                if (message.hasText() && message.getText().equals(BotCommands.START.getCommand())) {
+                    updateHandler.registerUser(message);
+                } else {
+                    updateHandler.userNotRegistered(message);
+                }
+            } else if (message.hasVoice()){
                 updateHandler.handleVoiceMessage(message);
             }else if (message.hasText()){
                 String inputMessage = message.getText();

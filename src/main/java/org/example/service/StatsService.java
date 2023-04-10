@@ -35,8 +35,11 @@ public class StatsService {
     JdbcTemplate jdbcTemplate;
 
     private void updateField(String fieldName, Object value) {
-        String query = "update pull_stats set " + fieldName + " = ?";
-        jdbcTemplate.update(query, value);
+        checkStatLoggingStarted();
+
+        Long pullStatKey = Long.parseLong(threadLocalMap.get(PULL_STAT_ID_KEY));
+        String query = "update pull_stats set " + fieldName + " = ? where pull_stat_id = ?";
+        jdbcTemplate.update(query, value, pullStatKey);
     }
 
     public void init() {
@@ -113,6 +116,8 @@ public class StatsService {
         Long statId = getLong(PULL_STAT_ID_KEY);
         Long duration = (startTimestamp != null && endTimestamp != null) ? endTimestamp - startTimestamp : null;
 
+        System.out.println("adding stats, pull timestamp: " + pullTimestamp);
+        System.out.println("adding stats, file size: " + fileSize);
         jdbcTemplate.update(ADD_PULL_STAT,
             userId,
             followeeId,
