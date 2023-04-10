@@ -115,7 +115,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
         if (update.hasCallbackQuery()){
             String answer = update.getCallbackQuery().getData();
-            if (Constants.YES.equals(answer) || Constants.No.equals(answer)){
+            if (answer.startsWith(Constants.YES) || answer.startsWith(Constants.No)){
                 updateHandler.handleConfirmation(update.getCallbackQuery());
             }
             else {

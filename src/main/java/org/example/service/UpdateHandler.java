@@ -102,7 +102,7 @@ public class UpdateHandler
         SendMessage messageForFolowee = new SendMessage();
         messageForFolowee.setChatId(foloweeChatId);
         messageForFolowee.setText("Hi! " + getUserNameWithAt(message) + " send request to follow you. Do you confirm?");
-        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription());
+        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId.toString()));
 
         sendMessage.setText("Your request was sent");
 
@@ -116,22 +116,16 @@ public class UpdateHandler
 
     public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
     {
-        String answer = callbackQuery.getData();
+        String[] data = callbackQuery.getData().split("_");
+
+        String answer = data[0];
+        Long userId = Long.valueOf(data[1]);
 
         SendMessage messageToFollowee = new SendMessage();
         SendMessage messageToUser = new SendMessage();
 
         messageToFollowee.setChatId(callbackQuery.getMessage().getChatId());
         Long followeeId = callbackQuery.getFrom().getId();
-        //TODO: bug below, need to know userId
-        Long userId = userService.getUserByFoloweeId(followeeId);
-
-        if (userId == null)
-        {
-            messageToFollowee.setText("Data is already processed");
-            executeFunction.execute(messageToFollowee);
-            return;
-        }
 
         if (Constants.YES.equals(answer))
         {
