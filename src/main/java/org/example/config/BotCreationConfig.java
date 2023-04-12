@@ -5,15 +5,13 @@ import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
 import org.example.util.SendAudioFunction;
+import org.example.util.SendVideoFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
-import org.telegram.telegrambots.meta.api.methods.send.SendMediaBotMethod;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
-import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
 public class BotCreationConfig {
@@ -55,6 +53,11 @@ public class BotCreationConfig {
 
     @Bean
     SendAudioFunction extractSendAudioFunction(MyTelegramBot bot) {
+        return bot::execute;
+    }
+
+    @Bean
+    SendVideoFunction extractSendVideoFunction(MyTelegramBot bot) {
         return bot::execute;
     }
 }

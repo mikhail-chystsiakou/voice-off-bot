@@ -14,12 +14,8 @@ import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.PhotoSize;
-import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos;
-import org.telegram.telegrambots.meta.api.objects.Voice;
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -42,6 +38,10 @@ public class UpdateHandler {
     @Autowired
     @Lazy
     SendAudioFunction sendAudioFunction;
+
+    @Autowired
+    @Lazy
+    SendVideoFunction sendVideoFunction;
 
     @Autowired
     VoiceStorage voiceStorage;
@@ -164,11 +164,34 @@ public class UpdateHandler {
 
         redownloadUserPhoto(user.getId());
 
+        if (result == 1)
+        {
+            SendVideo sendVideo1 = new SendVideo();
+            sendVideo1.setChatId(message.getChatId());
+            sendVideo1.setCaption(Constants.YOU_WAS_ADDED_TO_THE_SYSTEM);
+            sendVideo1.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired1.mp4")));
+            sendVideoFunction.execute(sendVideo1);
 
-        String replyMessage = result == 1 ? Constants.YOU_WAS_ADDED_TO_THE_SYSTEM : Constants.YOU_HAVE_ALREADY_REGISTERED;
-        SendMessage sendMessage = new SendMessage(message.getChatId().toString(), replyMessage);
-        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
-        executeFunction.execute(sendMessage);
+            SendVideo sendVideo2 = new SendVideo();
+            sendVideo2.setChatId(message.getChatId());
+            sendVideo2.setCaption("Record you thoughts to share them with you subscribers. Don't worry if you don't succeed. You can remove record by clicking the button 'Remove this recording'.");
+            sendVideo2.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired2.mp4")));
+            sendVideoFunction.execute(sendVideo2);
+
+            SendVideo sendVideo3 = new SendVideo();
+            sendVideo3.setChatId(message.getChatId());
+            sendVideo3.setCaption("Click 'Pull' to get updates from your friends.");
+            sendVideo3.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired3.mp4")));
+            sendVideo3.setReplyMarkup(ButtonsService.getInitMenuButtons());
+
+            sendVideoFunction.execute(sendVideo3);
+        }
+        else {
+            SendMessage sendMessage = new SendMessage(message.getChatId().toString(), Constants.YOU_HAVE_ALREADY_REGISTERED);
+            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+            executeFunction.execute(sendMessage);
+        }
+
     }
 
     private void redownloadUserPhoto(Long userId) throws TelegramApiException {
