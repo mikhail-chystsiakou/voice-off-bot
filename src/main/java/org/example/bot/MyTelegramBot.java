@@ -103,7 +103,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.help(message);
                 } else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
                     updateHandler.returnMainMenu(message);
-                } else {
+                } else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
+                    updateHandler.getTutorial(message.getChatId(), "isTutorial_1");
+                }else {
                     updateHandler.unsupportedResponse(message);
                 }
             }
@@ -127,6 +129,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             String answer = update.getCallbackQuery().getData();
             if (answer.startsWith(Constants.YES) || answer.startsWith(Constants.No)){
                 updateHandler.handleConfirmation(update.getCallbackQuery());
+            }
+            else if (answer.startsWith("isTutorial")){
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getData());
+            }
+            else if ("declineTutorial".equals(answer)){
+                updateHandler.declineTutorial(update.getCallbackQuery().getMessage().getChatId());
             }
             else {
                 updateHandler.removeRecording(update.getCallbackQuery());

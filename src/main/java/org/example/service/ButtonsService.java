@@ -88,4 +88,41 @@ public class ButtonsService
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(deleteButton)));
         return inlineKeyboardMarkup;
     }
+
+    public static ReplyKeyboard getButtonsForTutorial()
+    {
+        InlineKeyboardButton approveButton = new InlineKeyboardButton();
+        approveButton.setText("Yes");
+        approveButton.setCallbackData("isTutorial_1");
+
+        InlineKeyboardButton declineButton = new InlineKeyboardButton();
+        declineButton.setText("No");
+        declineButton.setCallbackData("declineTutorial");
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(approveButton, declineButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static ReplyKeyboard getNextButton(int stage)
+    {
+        InlineKeyboardButton approveButton = new InlineKeyboardButton();
+        approveButton.setText("Next");
+        approveButton.setCallbackData("isTutorial_" + ++stage);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(approveButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static ReplyKeyboard getFinishButton(int stage)
+    {
+        InlineKeyboardButton finishButton = new InlineKeyboardButton();
+        finishButton.setText("Finish");
+        finishButton.setCallbackData("isTutorial_" + ++stage);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(finishButton)));
+        return inlineKeyboardMarkup;
+    }
 }
