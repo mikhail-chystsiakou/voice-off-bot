@@ -166,25 +166,7 @@ public class UpdateHandler {
 
         if (result == 1)
         {
-            SendVideo sendVideo1 = new SendVideo();
-            sendVideo1.setChatId(message.getChatId());
-            sendVideo1.setCaption(Constants.YOU_WAS_ADDED_TO_THE_SYSTEM);
-            sendVideo1.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired1.mp4")));
-            sendVideoFunction.execute(sendVideo1);
-
-            SendVideo sendVideo2 = new SendVideo();
-            sendVideo2.setChatId(message.getChatId());
-            sendVideo2.setCaption("Record you thoughts to share them with you subscribers. Don't worry if you don't succeed. You can remove record by clicking the button 'Remove this recording'.");
-            sendVideo2.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired2.mp4")));
-            sendVideoFunction.execute(sendVideo2);
-
-            SendVideo sendVideo3 = new SendVideo();
-            sendVideo3.setChatId(message.getChatId());
-            sendVideo3.setCaption("Click 'Pull' to get updates from your friends.");
-            sendVideo3.setVideo(new InputFile(new File("C:\\Users\\voly0621\\Documents\\wired\\ready\\short\\BeWired3.mp4")));
-            sendVideo3.setReplyMarkup(ButtonsService.getInitMenuButtons());
-
-            sendVideoFunction.execute(sendVideo3);
+            sendTutorialRequest(message.getChatId());
         }
         else {
             SendMessage sendMessage = new SendMessage(message.getChatId().toString(), Constants.YOU_HAVE_ALREADY_REGISTERED);
@@ -192,6 +174,15 @@ public class UpdateHandler {
             executeFunction.execute(sendMessage);
         }
 
+    }
+
+    private void sendTutorialRequest(long chatId) throws TelegramApiException
+    {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setReplyMarkup(ButtonsService.getButtonsForTutorial());
+        sendMessage.setText(Constants.YOU_WAS_ADDED_TO_THE_SYSTEM + "\nDo you want a quick guide?");
+        executeFunction.execute(sendMessage);
     }
 
     private void redownloadUserPhoto(Long userId) throws TelegramApiException {
@@ -492,6 +483,89 @@ public class UpdateHandler {
         sendMessage.setChatId(message.getChatId());
         sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
         sendMessage.setText("Choose one of the options");
+        executeFunction.execute(sendMessage);
+    }
+
+    public void getTutorial(long chatId, String data) throws TelegramApiException
+    {
+        SendVideo sendVideo = new SendVideo();
+        sendVideo.setChatId(chatId);
+
+        int stage = Integer.parseInt(data.split("_")[1]);
+
+        if (stage == 1)
+        {
+            MessageEntity messageEntity = new MessageEntity();
+            messageEntity.setType("bold");
+            messageEntity.setOffset(0);
+            messageEntity.setLength(7);
+
+            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
+            sendVideo.setCaption("Step 1. Subscribe to your friend and wait for confirmation.");
+            sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired1.mp4")));
+            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+
+            sendVideoFunction.execute(sendVideo);
+        }
+        else if (stage == 2)
+        {
+            MessageEntity messageEntity = new MessageEntity();
+            messageEntity.setType("bold");
+            messageEntity.setOffset(0);
+            messageEntity.setLength(7);
+            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
+
+            sendVideo.setCaption("Step 2. Record a voice message to share your thoughts with your subscribers. " +
+                                     "\n -> Don't worry if you don't succeed. You can remove record by clicking the button 'Remove this recording'." +
+                                     "\n -> You can record voice messages whenever you want. Your subscribers will get all of them in one file.");
+            sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired2.mp4")));
+            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+
+            sendVideoFunction.execute(sendVideo);
+        }
+        else if (stage == 3)
+        {
+            MessageEntity messageEntity = new MessageEntity();
+            messageEntity.setType("bold");
+            messageEntity.setOffset(0);
+            messageEntity.setLength(7);
+            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
+
+            sendVideo.setCaption("Step 3. Click 'Pull' to get updates from your friends.");
+            sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired3.mp4")));
+            sendVideo.setReplyMarkup(ButtonsService.getFinishButton(stage));
+
+            sendVideoFunction.execute(sendVideo);
+        }
+        else if (stage == 4)
+        {
+            SendMessage sendMessage = new SendMessage();
+
+            MessageEntity messageEntity = new MessageEntity();
+            messageEntity.setType("bold");
+            messageEntity.setOffset(0);
+            messageEntity.setLength(16);
+            sendMessage.setEntities(Arrays.asList(messageEntity));
+
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("Congratulations! Indulge yourself in listening and recording!");
+            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+
+            executeFunction.execute(sendMessage);
+        }
+    }
+
+    public void declineTutorial(long chatId) throws TelegramApiException
+    {
+        MessageEntity messageEntity = new MessageEntity();
+        messageEntity.setType("bot_command");
+        messageEntity.setOffset(65);
+        messageEntity.setLength(9);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setEntities(Arrays.asList(messageEntity));
+        sendMessage.setText("OK. You can go through the tutorial whenever you want using the /tutorial command");
         executeFunction.execute(sendMessage);
     }
 
