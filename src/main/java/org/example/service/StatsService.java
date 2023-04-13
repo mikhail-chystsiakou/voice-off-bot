@@ -3,8 +3,6 @@ package org.example.service;
 import org.example.util.ThreadLocalMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.PreparedStatementCreator;
-import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
@@ -16,6 +14,7 @@ public class StatsService {
     public static final String PULL_STAT_ID_KEY = "PULL_STAT_ID_KEY";
     public static final String PULL_START_KEY = "PULL_START_KEY";
     public static final String PULL_END_KEY = "PULL_END_KEY";
+    public static final String PULL_END_BEFORE_UPLOAD_KEY = "PULL_END_BEFORE_UPLOAD_KEY";
     public static final String PULL_FILE_SIZE_KEY = "PULL_FILE_SIZE_KEY";
     public static final String PULL_USER_ID_KEY = "PULL_USER_ID_KEY";
     public static final String PULL_FOLLOWEE_ID_KEY = "PULL_FOLLOWEE_ID_KEY";
@@ -25,7 +24,8 @@ public class StatsService {
     private static final String ADD_PULL_STAT =
             "update pull_stats set " +
                     "user_id = ?, followee_id = ?, last_pull_timestamp = ?, pull_timestamp = ?, " +
-                    "start_timestamp = ?, end_timestamp = ?, processing_time_millis = ?, file_size = ? " +
+                    "start_timestamp = ?, end_before_upload_timestamp = ?, end_timestamp = ?, " +
+                    "processing_time_millis = ?, file_size = ? " +
                     "where pull_stat_id = ?";
 
     @Autowired
@@ -58,6 +58,14 @@ public class StatsService {
         long start = System.currentTimeMillis();
         updateField("start_timestamp", new Timestamp(start));
         threadLocalMap.put(PULL_START_KEY, String.valueOf(System.currentTimeMillis()));
+    }
+
+    public void pullEndBeforeUpload() {
+        checkStatLoggingStarted();
+
+        long end = System.currentTimeMillis();
+        updateField("end_before_upload_timestamp", new Timestamp(end));
+        threadLocalMap.put(PULL_END_BEFORE_UPLOAD_KEY, String.valueOf(System.currentTimeMillis()));
     }
 
     public void pullEnd() {
@@ -111,6 +119,7 @@ public class StatsService {
         Long lastPullTimestamp = getLong(PULL_LAST_PULL_TIMESTAMP_KEY);
         Long pullTimestamp = getLong(PULL_PULL_TIMESTAMP_KEY);
         Long startTimestamp = getLong(PULL_START_KEY);
+        Long endBeforeUploadTimestamp = getLong(PULL_END_BEFORE_UPLOAD_KEY);
         Long endTimestamp = getLong(PULL_END_KEY);
         Long fileSize = getLong(PULL_FILE_SIZE_KEY);
         Long statId = getLong(PULL_STAT_ID_KEY);
@@ -124,6 +133,7 @@ public class StatsService {
             lastPullTimestamp != null ? new Timestamp(lastPullTimestamp) : null,
             pullTimestamp != null ? new Timestamp(pullTimestamp) : null,
             startTimestamp != null ? new Timestamp(startTimestamp) : null,
+            endBeforeUploadTimestamp != null ? new Timestamp(endBeforeUploadTimestamp) : null,
             endTimestamp != null ? new Timestamp(endTimestamp) : null,
             duration,
             fileSize,

@@ -1,10 +1,10 @@
 package org.example.service;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.example.config.BotConfig;
 import org.example.ffmpeg.FFMPEG;
 import org.example.ffmpeg.FFMPEGResult;
-import org.example.util.ExecuteFunction;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
@@ -15,11 +15,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -239,9 +240,11 @@ public class UserService
         long lastPullTimestamp;
     }
 
+    @Data
     public static class VoicePart {
-        String recordingDate;
+        long recordingTimestamp;
         long duration;
+        String description;
     }
 
     public boolean isDataAvailable(Long userId) {
@@ -291,11 +294,14 @@ public class UserService
             );
 
             SendAudio sendAudio = new SendAudio();
+            sendAudio.setParseMode("Markdown");
 
             List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
-            if (voiceParts.size() > 1) {
+            if (voiceParts.size() > 1
+                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
                 sendAudio.setCaption(getAudioCaption(voiceParts));
             }
+
 
             Path filePath = Paths.get(localFile.getAbsoluteFileURL());
             long fileSize = 0;
@@ -309,8 +315,12 @@ public class UserService
             InputFile in = new InputFile();
             in.setMedia(filePath.toFile(), localFile.getAudioTitle());
             sendAudio.setAudio(in);
+            int duration = 0;
+            for (VoicePart vp : voiceParts) {
+                duration += vp.duration;
+            }
+            sendAudio.setDuration(duration);
             sendAudio.setTitle(localFile.getAudioTitle());
-
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
             String profilePicture = fileUtils.getProfilePicturePath(fpt.followeeId);
@@ -336,21 +346,34 @@ public class UserService
 
     private String getAudioCaption(List<VoicePart> voiceParts) {
         long start = 0;
-        StringJoiner sj = new StringJoiner("\n");
+        SimpleDateFormat sdf = new SimpleDateFormat("`yyyy.MM.dd, HH:mm:ss`");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        StringJoiner sj = new StringJoiner("\n\n");
         for (VoicePart vp : voiceParts) {
-            long hours = start / 3600;
-            long seconds = start % 60;
-            long minutes = (start - (hours * 3600)) / 60;
-            String caption = "";
-            if (hours > 0) {
-                caption += hours + ":";
-            }
-            caption += String.format("%02d:%02d - %s", minutes, seconds, vp.recordingDate);
+
+            String timeHandle = getTimeHandle(start);
+            String recordingTimestamp = sdf.format(new Timestamp(vp.recordingTimestamp));
+            String voiceDescription = vp.getDescription();
+            voiceDescription = voiceDescription == null ? "" : "\n" + voiceDescription;
+
+            String caption = timeHandle + " - " + recordingTimestamp + voiceDescription;
             sj.add(caption);
+
             start += vp.duration;
         }
+        return "\n" + sj.toString();
+    }
 
-        return sj.toString();
+    private String getTimeHandle(long start) {
+        long hours = start / 3600;
+        long seconds = start % 60;
+        long minutes = (start - (hours * 3600)) / 60;
+        String timeHandle = "";
+        if (hours > 0) {
+            timeHandle += hours + ":";
+        }
+        timeHandle += String.format("%02d:%02d", minutes, seconds);
+        return timeHandle;
     }
 
     /**
@@ -361,8 +384,9 @@ public class UserService
                 Queries.GET_VOICE_PARTS.getValue(),
                 (rs, rn) -> {
                     VoicePart vp = new VoicePart();
-                    vp.recordingDate = rs.getString("recording_day");
-                    vp.duration = rs.getLong("sum_duration");
+                    vp.recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
+                    vp.duration = rs.getLong("duration");
+                    vp.description = rs.getString("description");
                     return vp;
                 },
                 userId, new Timestamp(from), new Timestamp(to)
@@ -400,8 +424,11 @@ public class UserService
             return jdbcTemplate.queryForObject(
                     Queries.GET_USER_ID_BY_ID.getValue(),
                     (rs, n) -> {
+                        String username = rs.getString("username");
+                        String firstName = rs.getString("first_name");
+                        String lastName = rs.getString("last_name");
                         String followeeChatId = rs.getString("chat_id");
-                        return new UserService.UserInfo(userId, followeeChatId);
+                        return new UserService.UserInfo(userId, followeeChatId, username, firstName, lastName);
                     },
                     userId
             );
@@ -412,21 +439,27 @@ public class UserService
         }
     }
 
+    @Data
+    @AllArgsConstructor
     class UserInfo {
         Long userId;
         String chatId;
+        String username;
+        String firstName;
+        String lastName;
 
-        public UserInfo(Long userId, String chatId) {
-            this.userId = userId;
-            this.chatId = chatId;
-        }
 
-        public Long getUserId() {
-            return userId;
-        }
-
-        public String getChatId() {
-            return chatId;
+        public String getUserNameWithAt()
+        {
+            if (username != null)
+            {
+                return "@" + username;
+            }
+            if (lastName != null)
+            {
+                return firstName + " " + lastName;
+            }
+            return firstName;
         }
     }
 }

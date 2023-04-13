@@ -5,7 +5,7 @@ public enum BotCommands
 
     START("/start", "Register yourself"),
     HELP("/help", "Get help"),
-    END("/end", "Remove all your data except past messages");
+    END("/end", "Stop using bot");
 
     String command;
     String description;

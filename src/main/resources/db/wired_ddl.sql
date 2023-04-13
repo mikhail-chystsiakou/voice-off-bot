@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users
     last_name varchar,
     registered_date timestamp without time zone,
     chat_id bigint,
+    time_zone bigint,
 
     CONSTRAINT users_pkey PRIMARY KEY (user_id)
 );
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     file_order_number serial,
     duration bigint,
     message_id bigint,
+    description varchar,
     file_size bigint, -- in bytes
     recording_timestamp timestamp with time zone default current_timestamp,
 
@@ -52,7 +54,9 @@ create table pull_stats
     last_pull_timestamp timestamp with time zone,
     pull_timestamp      timestamp with time zone,
     start_timestamp     timestamp with time zone,
+    end_before_upload_timestamp       timestamp with time zone,
     end_timestamp       timestamp with time zone,
+    processing_time_millis bigint,
     file_size          bigint,
     processing_time     interval
 );

@@ -21,18 +21,18 @@ public enum Queries
             "group by us.user_id, us.followee_id, us.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),
-    GET_VOICE_PARTS("select to_char(recording_timestamp, 'YYYY.MM.DD') recording_day, sum(duration) sum_duration\n" +
+    GET_VOICE_PARTS("select recording_timestamp, duration, description\n" +
             "from user_audios\n" +
             "where user_id = ?\n" +
             "  and recording_timestamp > ?\n" +
             "  and recording_timestamp <= ?\n" +
-            "group by to_char(recording_timestamp, 'YYYY.MM.DD')\n" +
-            " order by to_char(recording_timestamp, 'YYYY.MM.DD')"),
+            " order by recording_timestamp"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
-    GET_USER_ID_BY_ID("select user_id, chat_id from users where user_id = ?"),
+    GET_USER_ID_BY_ID("select user_id, chat_id, username, first_name, last_name from users where user_id = ?"),
     REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?"),
-    GET_USER_NAMES_BY_USER_ID("select username, first_name, last_name from users where user_id = ?");
+    GET_USER_NAMES_BY_USER_ID("select username, first_name, last_name from users where user_id = ?"),
+    UPDATE_MESSAGE_DESCRIPTION("update user_audios set description = ? where user_id = ? and message_id = ?");
 
     String value;
 

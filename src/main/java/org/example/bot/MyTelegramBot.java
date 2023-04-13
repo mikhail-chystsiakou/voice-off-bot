@@ -7,14 +7,14 @@ import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
+import org.example.util.PullProcessingSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -30,6 +30,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     UpdateHandler updateHandler;
     UserService userService;
     TaskExecutor taskExecutor;
+    PullProcessingSet pullProcessingSet;
 
     public MyTelegramBot(DefaultBotOptions botOptions,
                          BotConfig botConfig,
@@ -52,11 +53,19 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        logger.trace("Got message: {}", update);
+        logger.info("Got message: {}", update);
         taskExecutor.execute(() -> {
             try {
                 handleUpdate(update);
             } catch (Exception e) {
+                try {
+                    if (update != null && update.hasMessage() && update.getMessage().getFrom() != null) {
+                        pullProcessingSet.finishProcessingForUser(update.getMessage().getFrom().getId());
+                    }
+                } catch (Exception e1) {
+                    logger.error("Failed to clear processing flag for message {}", update, e1);
+                }
+
                 logger.error("Top-level exception", e);
             }
         });
@@ -65,17 +74,17 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
     private void handleUpdate(Update update) throws TelegramApiException, IOException {
         logger.trace("Start processing message with id '{}'", update.getUpdateId());
-        if (update.hasMessage()) {
+        if (update.hasMessage() || update.hasEditedMessage()) {
             Message message = update.getMessage();
-            if (!isRegistered(message.getFrom().getId())) {
-                if (message.hasText() && message.getText().equals(BotCommands.START.getCommand())) {
-                    updateHandler.registerUser(message);
-                } else {
-                    updateHandler.userNotRegistered(message);
-                }
+            if (update.hasEditedMessage()) message = update.getEditedMessage();
+
+            if (!checkRegistered(message)) {
+                return;
+            } if (update.hasEditedMessage()) {
+                updateHandler.storeMessageDescription(message, true);
             } else if (message.hasVoice()){
                 updateHandler.handleVoiceMessage(message);
-            }else if (message.hasText()){
+            } else if (message.hasText()){
                 String inputMessage = message.getText();
                 if (inputMessage.startsWith(BotCommands.START.getCommand())){
                     updateHandler.registerUser(message);
@@ -85,9 +94,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.getManageSubscriptionsMenu(message);
 //                    updateHandler.getSubscriptions(message);
                 } else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
-                    updateHandler.unsubscribe(message);
+                    updateHandler.unsubscribeFrom(message);
                 } else if (inputMessage.startsWith(ButtonCommands.REMOVE_SUBSCRIBER.getCommand())) {
-                    updateHandler.removeFollower(message);
+                    updateHandler.removeSubscriber(message);
                 } else if (BotCommands.END.getCommand().equals(inputMessage)) {
                     updateHandler.end(message);
                 } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
@@ -102,15 +111,15 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 String requestId = message.getUserShared().getRequestId();
                 if ("1".equals(requestId))
                 {
-                    updateHandler.handleContact(message);
+                    updateHandler.subscribeTo(message);
                 }
                 if ("2".equals(requestId))
                 {
-                    updateHandler.unsubscribe(message);
+                    updateHandler.unsubscribeFrom(message);
                 }
                 if ("3".equals(requestId))
                 {
-                    updateHandler.removeFollower(message);
+                    updateHandler.removeSubscriber(message);
                 }
             }
         }
@@ -133,6 +142,18 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
     public void onRegister() {
         System.out.println("bot registered");
+    }
+
+    private boolean checkRegistered(Message message) throws TelegramApiException, IOException {
+        if (!isRegistered(message.getFrom().getId())) {
+            if (message.hasText() && message.getText().equals(BotCommands.START.getCommand())) {
+                updateHandler.registerUser(message);
+            } else {
+                updateHandler.userNotRegistered(message);
+            }
+            return false;
+        }
+        return true;
     }
 
     private boolean isRegistered(Long userId) {

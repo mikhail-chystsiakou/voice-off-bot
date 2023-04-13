@@ -14,19 +14,18 @@ import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.PhotoSize;
-import org.telegram.telegrambots.meta.api.objects.User;
-import org.telegram.telegrambots.meta.api.objects.UserProfilePhotos;
-import org.telegram.telegrambots.meta.api.objects.Voice;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import static org.example.Constants.Messages.*;
+import static org.example.enums.Queries.*;
 
 @Component
 public class UpdateHandler {
@@ -61,6 +60,23 @@ public class UpdateHandler {
     @Autowired
     PullProcessingSet pullProcessingSet;
 
+    public void storeMessageDescription(Message message, boolean sendConfirmation) throws TelegramApiException {
+        int messageId = message.getMessageId();
+        long userId = message.getFrom().getId();
+        String description = message.getCaption();
+        logger.trace("Updated message description " +
+                "for message id '{}' of user '{}' to '{}'", messageId, userId, description);
+        jdbcTemplate.update(
+                UPDATE_MESSAGE_DESCRIPTION.getValue(),
+                description,
+                userId,
+                messageId
+        );
+        if (sendConfirmation) {
+            executeFunction.execute(new SendMessage(String.valueOf(message.getChatId()), "Description updated"));
+        }
+    }
+
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
         Voice voice = message.getVoice();
@@ -71,15 +87,18 @@ public class UpdateHandler {
                 executeFunction::execute,
                 message.getMessageId()
         );
+        if (message.getCaption() != null) {
+            storeMessageDescription(message, false);
+        }
 
         SendMessage reply = new SendMessage();
-        reply.setText("Ok, recorded");
+        reply.setText(OK_RECORDED);
         reply.setChatId(message.getChatId());
         reply.setReplyMarkup(ButtonsService.getButtonForDeletingRecord(message.getMessageId()));
         executeFunction.execute(reply);
     }
 
-    public void handleContact(Message message) throws TelegramApiException
+    public void subscribeTo(Message message) throws TelegramApiException
     {
         long userId = message.getFrom().getId();
         long contactId = message.getUserShared().getUserId();
@@ -90,30 +109,32 @@ public class UpdateHandler {
 
         if (userService.getUserById(contactId) == null)
         {
-            sendMessage.setText("Contact not found");
+            sendMessage.setText(NOT_JOINED);
             executeFunction.execute(sendMessage);
             return;
         }
         if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, contactId)))
         {
-            sendMessage.setText("Contact is already linked to user");
+            UserService.UserInfo contact = userService.loadUserInfoById(contactId);
+            sendMessage.setText(MessageFormat.format(ALREADY_SUBSCRIBED, contact.getUserNameWithAt()));
             executeFunction.execute(sendMessage);
             return;
         }
-        Long foloweeChatId = userService.getChatIdByUserId(contactId);
-        SendMessage messageForFolowee = new SendMessage();
-        messageForFolowee.setChatId(foloweeChatId);
-        messageForFolowee.setText("Hi! " + getUserNameWithAt(message) + " send request to follow you. Do you confirm?");
-        messageForFolowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId));
+        UserService.UserInfo userInfo = userService.loadUserInfoById(contactId);
+        SendMessage messageForFollowee = new SendMessage();
+        messageForFollowee.setChatId(userInfo.getChatId());
+        messageForFollowee.setText(MessageFormat.format(
+                SUBSCRIBE_REQUEST_QUESTION, getUserNameWithAt(message)));
+        messageForFollowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId));
 
-        sendMessage.setText("Your request was sent");
+        sendMessage.setText(MessageFormat.format(SUBSCRIBE_REQUEST_SENT, userInfo.getUserNameWithAt()));
 
         if (!Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId))){
             int result = userService.addRequestToConfirm(userId, contactId);
         }
 
         executeFunction.execute(sendMessage);
-        executeFunction.execute(messageForFolowee);
+        executeFunction.execute(messageForFollowee);
     }
 
     public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
@@ -135,16 +156,18 @@ public class UpdateHandler {
         if (Constants.YES.equals(answer))
         {
             userService.addContact(userId, followeeId);
-            messageToFollowee.setText("User was accepted");
+            messageToFollowee.setText(SUBSCRIBE_REQUEST_ACCEPT_CONFIRM);
             messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User " + getUserNameWithAt(callbackQuery) + " accepted you");
+            messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_ACCEPTED,
+                    getUserNameWithAt(callbackQuery)));
         }
 
         if (Constants.No.equals(answer))
         {
-            messageToFollowee.setText("Ok, subscribe request declined");
+            messageToFollowee.setText(SUBSCRIBE_REQUEST_DECLINE_CONFIRM);
             messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText("User " + getUserNameWithAt(callbackQuery) + " declined you");
+            messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_DECLINED,
+                    getUserNameWithAt(callbackQuery)));
         }
         executeFunction.execute(messageToFollowee);
         executeFunction.execute(messageToUser);
@@ -237,19 +260,6 @@ public class UpdateHandler {
         fileUtils.moveFileAbsolute(sourceFilename, destFilename);
     }
 
-    private String getUserName(Message message)
-    {
-        if (message.getFrom().getUserName() != null)
-        {
-            return message.getFrom().getUserName();
-        }
-        if (message.getFrom().getLastName() != null)
-        {
-            return message.getFrom().getFirstName() + " " + message.getFrom().getLastName();
-        }
-        return message.getFrom().getFirstName();
-    }
-
     private String getUserNameWithAt(Message message)
     {
         if (message.getFrom().getUserName() != null)
@@ -261,6 +271,15 @@ public class UpdateHandler {
             return message.getFrom().getFirstName() + " " + message.getFrom().getLastName();
         }
         return message.getFrom().getFirstName();
+    }
+
+    private String getContactUsername(Contact contact)
+    {
+        if (contact.getLastName() != null)
+        {
+            return contact.getFirstName() + " " + contact.getLastName();
+        }
+        return contact.getFirstName();
     }
 
     private String getUserNameWithAt(CallbackQuery message)
@@ -297,6 +316,7 @@ public class UpdateHandler {
             records.forEach(record -> {
                 try
                 {
+                    statsService.pullEndBeforeUpload();
                     sendAudioFunction.execute(record);
                     userService.cleanup(record);
                 }
@@ -356,7 +376,7 @@ public class UpdateHandler {
         executeFunction.execute(userService.getSubscriptions(message.getFrom().getId(), message.getChatId()));
     }
 
-    public void unsubscribe(Message message) throws TelegramApiException
+    public void unsubscribeFrom(Message message) throws TelegramApiException
     {
         Long followeeId = message.getUserShared().getUserId();
 
@@ -366,27 +386,27 @@ public class UpdateHandler {
         UserService.UserInfo followee = userService.loadUserInfoById(followeeId);
         if (followee == null)
         {
-            result.setText("Selected user doesn't use the bot");
+            result.setText(NOT_JOINED);
         }
         else
         {
             int updatedRows = userService.unsubscribe(message, followee);
             if (updatedRows > 0) {
-                result.setText("Ok, unsubscribed");
+                result.setText(MessageFormat.format(UNSUBSCRIBED, followee.getUserNameWithAt()));
 
                 SendMessage unsubscribeNotification = new SendMessage();
                 unsubscribeNotification.setChatId(followee.getChatId());
-                unsubscribeNotification.setText(getUserNameWithAt(message) + " unsubscribed");
+                unsubscribeNotification.setText(MessageFormat.format(SUBSCRIBER_UNSUBSCRIBED, followee.getUserNameWithAt()));
                 executeFunction.execute(unsubscribeNotification);
             } else {
-                result.setText("Nothing changed, are you really subscribed to selected user?");
+                result.setText(MessageFormat.format(NOT_SUBSCRIBED, followee.getUserNameWithAt()));
             }
         }
         result.setReplyMarkup(ButtonsService.getInitMenuButtons());
         executeFunction.execute(result);
     }
 
-    public void removeFollower(Message message) throws TelegramApiException
+    public void removeSubscriber(Message message) throws TelegramApiException
     {
         Long userId = message.getUserShared().getUserId();
         SendMessage result = new SendMessage();
@@ -394,20 +414,20 @@ public class UpdateHandler {
         UserService.UserInfo follower = userService.loadUserInfoById(userId);
         if (follower == null)
         {
-            result.setText("Selected user doesn't use the bot");
+            result.setText(NOT_JOINED);
         }
         else
         {
             int updatedRows = userService.removeFollower(message, follower);
             if (updatedRows > 0) {
-                result.setText("Ok, user will no longer receive your updates");
+                result.setText(MessageFormat.format(SUBSCRIBER_REMOVED, follower.getUserNameWithAt()));
 
                 SendMessage unsubscribeNotification = new SendMessage();
                 unsubscribeNotification.setChatId(follower.getChatId());
-                unsubscribeNotification.setText(getUserNameWithAt(message) + " revoked your subscription");
+                unsubscribeNotification.setText(MessageFormat.format(SUBSCRIPTION_REVOKED, getUserNameWithAt(message)));
                 executeFunction.execute(unsubscribeNotification);
             } else {
-                result.setText("Nothing changed, are you really subscribed to selected user?");
+                result.setText(MessageFormat.format(NOT_SUBSCRIBER, follower.getUserNameWithAt()));
             }
         }
         result.setReplyMarkup(ButtonsService.getInitMenuButtons());
@@ -434,7 +454,7 @@ public class UpdateHandler {
         logger.trace("Sending not-registered warning reply to message {}", message);
         SendMessage notRegisteredMessage = new SendMessage();
         notRegisteredMessage.setChatId(message.getChatId());
-        notRegisteredMessage.setText("Send /start before using the bot");
+        notRegisteredMessage.setText(SEND_START_FIRST);
         executeFunction.execute(notRegisteredMessage);
     }
 
@@ -442,7 +462,7 @@ public class UpdateHandler {
     {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
-        sendMessage.setText("Choose the option in menu");
+        sendMessage.setText(CHOOSE_OPTION_FROM_MENU);
         sendMessage.setReplyMarkup(ButtonsService.getManageSubscriptionsMenu());
         executeFunction.execute(sendMessage);
     }
@@ -454,11 +474,13 @@ public class UpdateHandler {
 
         String messageId = callbackQuery.getData();
 
-        int updatedRows = userService.removeRecordByUserIdAndMessageId(callbackQuery.getFrom().getId(), messageId);
+        Long userId = callbackQuery.getFrom().getId();
+        int updatedRows = userService.removeRecordByUserIdAndMessageId(userId, messageId);
         if (updatedRows > 0) {
-            sendMessage.setText("Ok, removed");
+            logger.debug("Message removed by id: {}, user: {}", messageId, userId);
+            sendMessage.setText(OK_REMOVED);
         } else {
-            sendMessage.setText("Recording not found");
+            sendMessage.setText(RECORDING_NOT_FOUND);
         }
         executeFunction.execute(sendMessage);
     }
@@ -468,7 +490,7 @@ public class UpdateHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
         sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
-        sendMessage.setText("Choose one of the options");
+        sendMessage.setText(CHOOSE_OPTION_FROM_MENU);
         executeFunction.execute(sendMessage);
     }
 

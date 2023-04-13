@@ -2,13 +2,13 @@ package org.example.enums;
 
 public enum ButtonCommands
 {
-    PULL("/pull", "Get updates"),
-    MANAGE_SUBSCRIPTIONS("/subscriptions", "Manage Subscriptions"),
+    PULL("/pull", "Pull"),
+    MANAGE_SUBSCRIPTIONS("/subscriptions", "Subscriptions"),
     REMOVE_SUBSCRIBER("/removefollower", "Remove subscriber"),
     UNSUBSCRIBE("/unsubscribe", "Unsubscribe from"),
     SUBSCRIBE("/subscribe", "Subscribe to"),
     REMOVE_RECORDING("/removerecording", "Remove this recording"),
-    RETURN_TO_MAIN_MENU("/return", "Return to main menu");
+    RETURN_TO_MAIN_MENU("/return", "Return");
 
     String command;
     String description;
