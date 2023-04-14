@@ -177,19 +177,39 @@ public class UpdateHandler {
 
         if (Constants.YES.equals(answer))
         {
-            userService.addContact(userId, followeeId);
-            messageToFollowee.setText(SUBSCRIBE_REQUEST_ACCEPT_CONFIRM);
-            messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_ACCEPTED,
-                    getUserNameWithAt(callbackQuery)));
+            if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, followeeId))){
+                messageToFollowee.setText("The user is already following you");
+                executeFunction.execute(messageToFollowee);
+                return;
+            }
+            else {
+                userService.addContact(userId, followeeId);
+                messageToFollowee.setText(SUBSCRIBE_REQUEST_ACCEPT_CONFIRM);
+                messageToUser.setChatId(userId);
+                messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_ACCEPTED,
+                                                           getUserNameWithAt(callbackQuery)));
+            }
         }
 
         if (Constants.No.equals(answer))
         {
-            messageToFollowee.setText(SUBSCRIBE_REQUEST_DECLINE_CONFIRM);
-            messageToUser.setChatId(userService.getChatIdByUserId(userId));
-            messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_DECLINED,
-                    getUserNameWithAt(callbackQuery)));
+            if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, followeeId))){
+                messageToFollowee.setText("Data already processed. The user is already following you. To unsubscribe user use *Subscriptions* -> *Remove subscriber*.");
+                messageToFollowee.enableMarkdown(true);
+                executeFunction.execute(messageToFollowee);
+                return;
+            }
+            else if (Integer.valueOf(1).equals(userService.getRequestRecord(userId, followeeId)))
+            {
+                messageToFollowee.setText(SUBSCRIBE_REQUEST_DECLINE_CONFIRM);
+                messageToUser.setChatId(userService.getChatIdByUserId(userId));
+                messageToUser.setText(MessageFormat.format(SUBSCRIBE_REQUEST_DECLINED,
+                                                           getUserNameWithAt(callbackQuery)));
+                userService.removeRequestToConfirm(userId, followeeId);
+            }
+            else {
+                messageToFollowee.setText("Data already processed.");
+            }
         }
         executeFunction.execute(messageToFollowee);
         executeFunction.execute(messageToUser);
@@ -703,12 +723,10 @@ public class UpdateHandler {
         return tz;
     }
 
-    public void getTutorial(long chatId, String data) throws TelegramApiException
+    public void getTutorial(long chatId, int stage) throws TelegramApiException
     {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
-
-        int stage = Integer.parseInt(data.split("_")[1]);
 
         if (stage == 1)
         {
@@ -721,7 +739,7 @@ public class UpdateHandler {
         }
         else if (stage == 2)
         {
-            sendVideo.setCaption("*Record* a voice message to share your thoughts with your subscribers. " +
+            sendVideo.setCaption("*Record* a voice message to share your thoughts with subscribers. " +
                                      "\n - Don't worry if you don't succeed. You can *remove* record by clicking the button 'Remove this recording'." +
                                      "\n - You can record voice messages whenever you want. Your subscribers will get all of them *in one file*." +
                                      "\n - You can edit your voice message to *add description*.");
@@ -742,7 +760,15 @@ public class UpdateHandler {
         }
         else if (stage == 4)
         {
+            sendVideo.setCaption("You can add a *description* to each recording.");
+            sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired4.mp4")));
+            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setParseMode("Markdown");
 
+            sendVideoFunction.execute(sendVideo);
+        }
+        else if (stage == 5)
+        {
             SendMessage lastStep = new SendMessage();
             lastStep.setText("*Setup your timezone* for proper date and time handling. You can change it later via /settings command.");
             lastStep.setParseMode("Markdown");
@@ -750,7 +776,7 @@ public class UpdateHandler {
             lastStep.setReplyMarkup(ButtonsService.getTimezoneMarkup(stage));
             executeFunction.execute(lastStep);
         }
-        else if (stage == 5) {
+        else if (stage == 6) {
 
             SendMessage sendMessage = new SendMessage();
 
@@ -774,6 +800,7 @@ public class UpdateHandler {
         sendMessage.setChatId(chatId);
         sendMessage.setEntities(Arrays.asList(messageEntity));
         sendMessage.setText("OK. You can go through the tutorial whenever you want using the /tutorial command");
+        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
     }
 

@@ -105,7 +105,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 } else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
                     updateHandler.returnMainMenu(message);
                 } else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
-                    updateHandler.getTutorial(message.getChatId(), "isTutorial_1");
+                    updateHandler.getTutorial(message.getChatId(), 1);
                 } else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
                     updateHandler.getSettings(message);
                 } else {
@@ -146,7 +146,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 updateHandler.removeRecording(update.getCallbackQuery());
             }
             if (answer.contains("isTutorial")){
-                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getData());
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), Integer.parseInt(answer.split("_")[1]));
+            }
+            if (answer.equals("declineTimezone"))            {
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), 6);
             }
         }
         logger.trace("Finish processing message with id '{}'", update.getUpdateId());

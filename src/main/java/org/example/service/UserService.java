@@ -88,6 +88,11 @@ public class UserService
         return jdbcTemplate.update(Queries.ADD_CONTACT.getValue(), userId, contactId);
     }
 
+    public int removeRequestToConfirm(Long userId, Long contactId){
+        return  jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
+    }
+
+
     public Long getChatIdByUserId(Long contactId)
     {
         return jdbcTemplate.queryForObject(Queries.GET_CHAT_ID_BY_USER_ID.getValue(), new Object[]{contactId}, Long.class);

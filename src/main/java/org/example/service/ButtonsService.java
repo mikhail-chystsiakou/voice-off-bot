@@ -82,8 +82,12 @@ public class ButtonsService
         timezoneButton.setText("Set timezone");
         timezoneButton.setCallbackData("settings_timezone_" + ++stage);
 
+        InlineKeyboardButton declineTimezoneButton = new InlineKeyboardButton();
+        declineTimezoneButton.setText("Skip");
+        declineTimezoneButton.setCallbackData("declineTimezone");
+
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton, declineTimezoneButton)));
         return inlineKeyboardMarkup;
     }
 
@@ -164,8 +168,8 @@ public class ButtonsService
     public static ReplyKeyboard getNextButton(int stage)
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
-        approveButton.setText("Next (" + ++stage + "/4)");
-        approveButton.setCallbackData("isTutorial_" + stage);
+        approveButton.setText("Next (" + stage + "/4)");
+        approveButton.setCallbackData("isTutorial_" + ++stage);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(approveButton)));
