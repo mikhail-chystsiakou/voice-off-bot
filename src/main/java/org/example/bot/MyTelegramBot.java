@@ -36,7 +36,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                          BotConfig botConfig,
                          UpdateHandler updateHandler,
                          UserService userService,
-                         TaskExecutor taskExecutor) throws TelegramApiException
+                         TaskExecutor taskExecutor,
+                         PullProcessingSet pullProcessingSet) throws TelegramApiException
     {
         super(botOptions, botConfig.getToken());
         this.updateHandler = updateHandler;
@@ -99,8 +100,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.removeSubscriber(message);
                 } else if (BotCommands.END.getCommand().equals(inputMessage)) {
                     updateHandler.end(message);
-                } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
-                    updateHandler.help(message);
+//                } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
+//                    updateHandler.help(message);
                 } else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
                     updateHandler.returnMainMenu(message);
                 } else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
@@ -132,16 +133,20 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             if (answer.startsWith(Constants.YES) || answer.startsWith(Constants.No)){
                 updateHandler.handleConfirmation(update.getCallbackQuery());
             }
-            else if (answer.startsWith("isTutorial")){
-                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getData());
-            }
-            else if ("declineTutorial".equals(answer)){
+            if (answer.contains("declineTutorial")){
                 updateHandler.declineTutorial(update.getCallbackQuery().getMessage().getChatId());
-            } else if (answer.startsWith("settings")){
+            }
+            if (answer.contains("settings")){
                 updateHandler.setSettings(update.getCallbackQuery(), answer);
             }
-            else {
+            if (answer.contains("timestamps")){
+                updateHandler.showHideTimestamps(update.getCallbackQuery(), answer);
+            }
+            if (answer.contains("remove")) {
                 updateHandler.removeRecording(update.getCallbackQuery());
+            }
+            if (answer.contains("isTutorial")){
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getData());
             }
         }
         logger.trace("Finish processing message with id '{}'", update.getUpdateId());

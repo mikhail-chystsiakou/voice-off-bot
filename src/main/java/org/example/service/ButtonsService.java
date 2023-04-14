@@ -53,6 +53,40 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
+    public static InlineKeyboardMarkup getShowTimestampsButton()
+    {
+        InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
+        timezoneButton.setText("Show Timestamps");
+        timezoneButton.setCallbackData("timestamps_show");
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
+        return inlineKeyboardMarkup;
+    }
+
+
+    public static InlineKeyboardMarkup getHideTimestampsButton()
+    {
+        InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
+        timezoneButton.setText("Hide Timestamps");
+        timezoneButton.setCallbackData("timestamps_hide");
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static ReplyKeyboard getTimezoneMarkup(int stage)
+    {
+        InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
+        timezoneButton.setText("Set timezone");
+        timezoneButton.setCallbackData("settings_timezone_" + ++stage);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
+        return inlineKeyboardMarkup;
+    }
+
     public static ReplyKeyboard getTimezoneMarkup()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
@@ -105,7 +139,7 @@ public class ButtonsService
     public static InlineKeyboardMarkup getButtonForDeletingRecord(Integer messageId){
         InlineKeyboardButton deleteButton = new InlineKeyboardButton();
         deleteButton.setText(ButtonCommands.REMOVE_RECORDING.getDescription());
-        deleteButton.setCallbackData(messageId.toString());
+        deleteButton.setCallbackData("remove_" + messageId.toString());
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(deleteButton)));
@@ -130,8 +164,8 @@ public class ButtonsService
     public static ReplyKeyboard getNextButton(int stage)
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
-        approveButton.setText("Next");
-        approveButton.setCallbackData("isTutorial_" + ++stage);
+        approveButton.setText("Next (" + ++stage + "/4)");
+        approveButton.setCallbackData("isTutorial_" + stage);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(approveButton)));
@@ -149,159 +183,159 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup getTimezonesButtons()
+    public static InlineKeyboardMarkup getTimezonesButtons(boolean finish)
     {
         InlineKeyboardButton utc_1200 = new InlineKeyboardButton();
         utc_1200.setText("UTC-12:00");
-        utc_1200.setCallbackData("settings_timezone_-1200");
+        utc_1200.setCallbackData("settings_timezone_-1200" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_1100 = new InlineKeyboardButton();
         utc_1100.setText("UTC-11:00");
-        utc_1100.setCallbackData("settings_timezone_-1100");
+        utc_1100.setCallbackData("settings_timezone_-1100" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_1000 = new InlineKeyboardButton();
         utc_1000.setText("UTC-10:00");
-        utc_1000.setCallbackData("settings_timezone_-1000");
+        utc_1000.setCallbackData("settings_timezone_-1000" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0930 = new InlineKeyboardButton();
         utc_0930.setText("UTC-09:30");
-        utc_0930.setCallbackData("settings_timezone_-0930");
+        utc_0930.setCallbackData("settings_timezone_-0930" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0900 = new InlineKeyboardButton();
         utc_0900.setText("UTC-09:00");
-        utc_0900.setCallbackData("settings_timezone_-0900");
+        utc_0900.setCallbackData("settings_timezone_-0900" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0800 = new InlineKeyboardButton();
         utc_0800.setText("UTC-08:00");
-        utc_0800.setCallbackData("settings_timezone_-0800");
+        utc_0800.setCallbackData("settings_timezone_-0800" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0700 = new InlineKeyboardButton();
         utc_0700.setText("UTC-07:00");
-        utc_0700.setCallbackData("settings_timezone_-0700");
+        utc_0700.setCallbackData("settings_timezone_-0700" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0600 = new InlineKeyboardButton();
         utc_0600.setText("UTC-06:00");
-        utc_0600.setCallbackData("settings_timezone_-0600");
+        utc_0600.setCallbackData("settings_timezone_-0600" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0500 = new InlineKeyboardButton();
         utc_0500.setText("UTC-05:00");
-        utc_0500.setCallbackData("settings_timezone_-0500");
+        utc_0500.setCallbackData("settings_timezone_-0500" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0400 = new InlineKeyboardButton();
         utc_0400.setText("UTC-04:00");
-        utc_0400.setCallbackData("settings_timezone_-0400");
+        utc_0400.setCallbackData("settings_timezone_-0400" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0330 = new InlineKeyboardButton();
         utc_0330.setText("UTC-03:30");
-        utc_0330.setCallbackData("settings_timezone_-0330");
+        utc_0330.setCallbackData("settings_timezone_-0330" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0300 = new InlineKeyboardButton();
         utc_0300.setText("UTC-03:00");
-        utc_0300.setCallbackData("settings_timezone_-0300");
+        utc_0300.setCallbackData("settings_timezone_-0300" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0200 = new InlineKeyboardButton();
         utc_0200.setText("UTC-02:00");
-        utc_0200.setCallbackData("settings_timezone_-0200");
+        utc_0200.setCallbackData("settings_timezone_-0200" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc_0100 = new InlineKeyboardButton();
         utc_0100.setText("UTC+01:00");
-        utc_0100.setCallbackData("settings_timezone_-0100");
+        utc_0100.setCallbackData("settings_timezone_-0100" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0000 = new InlineKeyboardButton();
         utc0000.setText("UTC+00:00");
-        utc0000.setCallbackData("settings_timezone_0000");
+        utc0000.setCallbackData("settings_timezone_0000" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0100 = new InlineKeyboardButton();
         utc0100.setText("UTC+01:00");
-        utc0100.setCallbackData("settings_timezone_0100");
+        utc0100.setCallbackData("settings_timezone_0100" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0200 = new InlineKeyboardButton();
         utc0200.setText("UTC+02:00");
-        utc0200.setCallbackData("settings_timezone_0200");
+        utc0200.setCallbackData("settings_timezone_0200" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0300 = new InlineKeyboardButton();
         utc0300.setText("UTC+03:00");
-        utc0300.setCallbackData("settings_timezone_0300");
+        utc0300.setCallbackData("settings_timezone_0300" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0330 = new InlineKeyboardButton();
         utc0330.setText("UTC+03:30");
-        utc0330.setCallbackData("settings_timezone_0330");
+        utc0330.setCallbackData("settings_timezone_0330" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0400 = new InlineKeyboardButton();
         utc0400.setText("UTC+04:00");
-        utc0400.setCallbackData("settings_timezone_0400");
+        utc0400.setCallbackData("settings_timezone_0400" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0430 = new InlineKeyboardButton();
         utc0430.setText("UTC+04:30");
-        utc0430.setCallbackData("settings_timezone_0430");
+        utc0430.setCallbackData("settings_timezone_0430" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0500 = new InlineKeyboardButton();
         utc0500.setText("UTC+05:00");
-        utc0500.setCallbackData("settings_timezone_0500");
+        utc0500.setCallbackData("settings_timezone_0500" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0530 = new InlineKeyboardButton();
         utc0530.setText("UTC+05:30");
-        utc0530.setCallbackData("settings_timezone_0530");
+        utc0530.setCallbackData("settings_timezone_0530" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0545 = new InlineKeyboardButton();
         utc0545.setText("UTC+05:45");
-        utc0545.setCallbackData("settings_timezone_0545");
+        utc0545.setCallbackData("settings_timezone_0545" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0600 = new InlineKeyboardButton();
         utc0600.setText("UTC+06:00");
-        utc0600.setCallbackData("settings_timezone_0600");
+        utc0600.setCallbackData("settings_timezone_0600" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0630 = new InlineKeyboardButton();
         utc0630.setText("UTC+06:30");
-        utc0630.setCallbackData("settings_timezone_0630");
+        utc0630.setCallbackData("settings_timezone_0630" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0700 = new InlineKeyboardButton();
         utc0700.setText("UTC+07:00");
-        utc0700.setCallbackData("settings_timezone_0700");
+        utc0700.setCallbackData("settings_timezone_0700" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0800 = new InlineKeyboardButton();
         utc0800.setText("UTC+08:00");
-        utc0800.setCallbackData("settings_timezone_0800");
+        utc0800.setCallbackData("settings_timezone_0800" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0845 = new InlineKeyboardButton();
         utc0845.setText("UTC+08:45");
-        utc0845.setCallbackData("settings_timezone_0845");
+        utc0845.setCallbackData("settings_timezone_0845" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0900 = new InlineKeyboardButton();
         utc0900.setText("UTC+09:00");
-        utc0900.setCallbackData("settings_timezone_0900");
+        utc0900.setCallbackData("settings_timezone_0900" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc0930 = new InlineKeyboardButton();
         utc0930.setText("UTC+09:30");
-        utc0930.setCallbackData("settings_timezone_0930");
+        utc0930.setCallbackData("settings_timezone_0930" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1000 = new InlineKeyboardButton();
         utc1000.setText("UTC+10:00");
-        utc1000.setCallbackData("settings_timezone_1000");
+        utc1000.setCallbackData("settings_timezone_1000" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1030 = new InlineKeyboardButton();
         utc1030.setText("UTC+10:30");
-        utc1030.setCallbackData("settings_timezone_1030");
+        utc1030.setCallbackData("settings_timezone_1030" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1100 = new InlineKeyboardButton();
         utc1100.setText("UTC+11:00");
-        utc1100.setCallbackData("settings_timezone_1100");
+        utc1100.setCallbackData("settings_timezone_1100" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1200 = new InlineKeyboardButton();
         utc1200.setText("UTC+12:00");
-        utc1200.setCallbackData("settings_timezone_1200");
+        utc1200.setCallbackData("settings_timezone_1200" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1245 = new InlineKeyboardButton();
         utc1245.setText("UTC+12:45");
-        utc1245.setCallbackData("settings_timezone_1245");
+        utc1245.setCallbackData("settings_timezone_1245" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1300 = new InlineKeyboardButton();
         utc1300.setText("UTC+13:00");
-        utc1300.setCallbackData("settings_timezone_1300");
+        utc1300.setCallbackData("settings_timezone_1300" + (finish ? "f" : ""));
 
         InlineKeyboardButton utc1400 = new InlineKeyboardButton();
         utc1400.setText("UTC+14:00");
-        utc1400.setCallbackData("settings_timezone_1400");
+        utc1400.setCallbackData("settings_timezone_1400" + (finish ? "f" : ""));
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(

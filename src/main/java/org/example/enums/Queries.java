@@ -21,19 +21,27 @@ public enum Queries
             "group by us.user_id, us.followee_id, us.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),
-    GET_VOICE_PARTS("select recording_timestamp, duration, description\n" +
+    GET_VOICE_PARTS("select recording_timestamp, duration, description, pull_count, message_id\n" +
             "from user_audios\n" +
             "where user_id = ?\n" +
             "  and recording_timestamp > ?\n" +
             "  and recording_timestamp <= ?\n" +
             " order by recording_timestamp"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
+    SET_PULL_COUNT("UPDATE user_audios set pull_count = ? where user_id = ? and message_id = ?"),
+    SET_OK_MESSAGE_ID("UPDATE user_audios set ok_message_id = ? where user_id = ? and message_id = ?"),
+    GET_OK_MESSAGE_ID("select ok_message_id from user_audios where user_id = ? and message_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
     GET_USER_ID_BY_ID("select user_id, chat_id, username, first_name, last_name, time_zone from users where user_id = ?"),
     REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?"),
     GET_USER_NAMES_BY_USER_ID("select username, first_name, last_name from users where user_id = ?"),
     UPDATE_MESSAGE_DESCRIPTION("update user_audios set description = ? where user_id = ? and message_id = ?"),
-    UPDATE_TIMEZONE("update users set time_zone = ? where user_id = ?");
+    UPDATE_TIMEZONE("update users set time_zone = ? where user_id = ?"),
+    GET_PREVIOUS_PULL_TIMESTAMP("select followee_id, pull_timestamp, last_pull_timestamp from pull_stats\n" +
+            "         where pull_timestamp <= ?\n" +
+            "         and user_id = ?\n" +
+            "order by last_pull_timestamp desc limit 1"),
+    GET_VOICE_PARTS_BY_TIMESTAMPS("select * from user_audios where user_id = ? and recording_timestamp > ? and recording_timestamp < ?");
 
     String value;
 

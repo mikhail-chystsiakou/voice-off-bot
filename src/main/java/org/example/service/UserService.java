@@ -10,17 +10,18 @@ import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
+import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -34,7 +35,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
+import static org.example.Constants.Messages.OK_RECORDED;
+import static org.example.enums.Queries.*;
 
 @Component
 public class UserService
@@ -53,6 +55,10 @@ public class UserService
 
     @Autowired
     StatsService statsService;
+
+    @Autowired
+    @Lazy
+    ExecuteFunction executeFunction;
 
     @Autowired
     public UserService(DataSourceConfig dataSourceConfig)
@@ -245,6 +251,8 @@ public class UserService
         long recordingTimestamp;
         long duration;
         String description;
+        long pullCount;
+        long messageId;
     }
 
     public boolean isDataAvailable(Long userId) {
@@ -298,11 +306,46 @@ public class UserService
             SendAudio sendAudio = new SendAudio();
             sendAudio.setParseMode("Markdown");
 
-            List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
-            if (voiceParts.size() > 1
-                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
-                sendAudio.setCaption(getAudioCaption(voiceParts, userInfo.getTimezone()));
+            // todo OH MY GOD sql inside loop inside synchronized -_-
+            List<VoicePart> voiceParts = Collections.emptyList();
+            synchronized (this) {
+                voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, lastFileRecordingTimestamp);
+                System.out.println(Arrays.asList(voiceParts.toArray()));
+                for (VoicePart vp : voiceParts) {
+                    vp.setPullCount(vp.getPullCount() + 1);
+                    jdbcTemplate.update(SET_PULL_COUNT.getValue(), vp.getPullCount(), fpt.followeeId, vp.messageId);
+                    // update messages
+                    System.out.println("updating message id " + vp.messageId + " of " + fpt.followeeId + " to pull count " + vp.getPullCount());
+                    Integer followeeOkMessageId = jdbcTemplate.queryForObject(GET_OK_MESSAGE_ID.getValue(),
+                            new Object[] { fpt.followeeId, vp.messageId },
+                            Integer.class);
+                    if (followeeOkMessageId != null) {
+                        EditMessageText emt = new EditMessageText();
+                        emt.setChatId(fpt.followeeId);
+                        if (vp.getPullCount() == 1) {
+                            emt.setText(OK_RECORDED + ". Recording was pulled 1 time");
+
+                        } else {
+
+                            emt.setText(OK_RECORDED + ". Recording was pulled " + vp.getPullCount() + " times");
+                        }
+                        emt.setMessageId(followeeOkMessageId);
+                        emt.setReplyMarkup(ButtonsService.getButtonForDeletingRecord((int)vp.messageId));
+                        try {
+                            executeFunction.execute(emt);
+                        } catch (TelegramApiException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+
+                }
             }
+
+//            if (voiceParts.size() > 1
+//                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
+//                sendAudio.setCaption(getAudioCaption(voiceParts, userInfo.getTimezone()));
+//            }
 
 
             Path filePath = Paths.get(localFile.getAbsoluteFileURL());
@@ -325,6 +368,9 @@ public class UserService
             sendAudio.setTitle(localFile.getAudioTitle());
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
+            if (voiceParts.size() > 1 || (voiceParts.size() == 1 && voiceParts.get(0).getDescription() != null)) {
+                sendAudio.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+            }
             String profilePicture = fileUtils.getProfilePicturePath(fpt.followeeId);
             if (profilePicture !=null) {
                 sendAudio.setThumb(new InputFile(new File(profilePicture), "cover"));
@@ -350,7 +396,7 @@ public class UserService
         long start = 0;
         SimpleDateFormat sdf = new SimpleDateFormat("`yyyy.MM.dd, HH:mm:ss`");
         sdf.setTimeZone(getTimeZoneByOffset(zoneOffset));
-        StringJoiner sj = new StringJoiner("\n\n");
+        StringJoiner sj = new StringJoiner("\n");
         for (VoicePart vp : voiceParts) {
 
             String timeHandle = getTimeHandle(start);
@@ -404,6 +450,8 @@ public class UserService
                     vp.recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
                     vp.duration = rs.getLong("duration");
                     vp.description = rs.getString("description");
+                    vp.pullCount = rs.getLong("pull_count");
+                    vp.messageId = rs.getLong("message_id");
                     return vp;
                 },
                 userId, new Timestamp(from), new Timestamp(to)

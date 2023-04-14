@@ -6,8 +6,8 @@ public enum BotCommands
     START("/start", "Register yourself"),
     SETTINGS("/settings", "Settings"),
 //    HELP("/help", "Get help"),
-    END("/end", "Stop using bot"),
-    TUTORIAL("/tutorial", "Get a tutorial");
+    TUTORIAL("/tutorial", "Get a tutorial"),
+    END("/end", "Stop using bot");
 
     String command;
     String description;

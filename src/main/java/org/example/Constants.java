@@ -10,7 +10,7 @@ public class Constants
     public interface Messages {
         String SEND_START_FIRST = "Send /start command before using the bot";
         String CHOOSE_OPTION_FROM_MENU = "Choose the option from menu below";
-        String SELECT_SETTING = "Select setting to update";
+        String SELECT_SETTING = "Select setting";
         String OK_RECORDED = "Ok, recorded";
         String OK_REMOVED = "Ok, removed";
         String RECORDING_NOT_FOUND = "Recording not found";
@@ -20,7 +20,7 @@ public class Constants
         String SUBSCRIPTION_REVOKED = "{0} revoked your subscription";
         String UNSUBSCRIBED = "You will no longer receive updates from {0}";
         String SUBSCRIBER_REMOVED = "{0} will no longer receive your updates";
-        String SUBSCRIBER_UNSUBSCRIBED = "{0} unsubscribed from your";
+        String SUBSCRIBER_UNSUBSCRIBED = "{0} unsubscribed from you";
         String SUBSCRIBE_REQUEST_DECLINED = "{0} declined you";
         String SUBSCRIBE_REQUEST_DECLINE_CONFIRM = "Ok, declined";
         String SUBSCRIBE_REQUEST_ACCEPTED = "{0} accepted you";

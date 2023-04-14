@@ -16,18 +16,21 @@ import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.example.Constants.Messages.*;
 import static org.example.enums.Queries.*;
@@ -83,7 +86,11 @@ public class UpdateHandler {
                 messageId
         );
         if (sendConfirmation) {
-            executeFunction.execute(new SendMessage(String.valueOf(message.getChatId()), "Description updated"));
+            SendMessage sm = new SendMessage();
+            sm.setChatId(String.valueOf(message.getChatId()));
+            sm.setText("Description updated");
+            sm.setReplyToMessageId(messageId);
+            executeFunction.execute(sm);
         }
     }
 
@@ -102,10 +109,15 @@ public class UpdateHandler {
         }
 
         SendMessage reply = new SendMessage();
-        reply.setText(OK_RECORDED);
+        reply.setText(OK_RECORDED + ". Nobody pulled this recording yet");
         reply.setChatId(message.getChatId());
         reply.setReplyMarkup(ButtonsService.getButtonForDeletingRecord(message.getMessageId()));
-        executeFunction.execute(reply);
+        Message replyMessage = executeFunction.execute(reply);
+        jdbcTemplate.update(SET_OK_MESSAGE_ID.getValue(),
+                replyMessage.getMessageId(),
+                message.getFrom().getId(),
+                message.getMessageId()
+        );
     }
 
     public void subscribeTo(Message message) throws TelegramApiException
@@ -496,12 +508,14 @@ public class UpdateHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(callbackQuery.getMessage().getChatId());
 
-        String messageId = callbackQuery.getData();
+        String messageId = callbackQuery.getData().substring("remove_".length());
 
         Long userId = callbackQuery.getFrom().getId();
+        logger.debug("Removing message by id: {}, user: {}", messageId, userId);
+        System.out.println("Removing message by id: " + messageId + ", user: " + userId);
         int updatedRows = userService.removeRecordByUserIdAndMessageId(userId, messageId);
+        sendMessage.setReplyToMessageId(Integer.valueOf(messageId));
         if (updatedRows > 0) {
-            logger.debug("Message removed by id: {}, user: {}", messageId, userId);
             sendMessage.setText(OK_REMOVED);
         } else {
             sendMessage.setText(RECORDING_NOT_FOUND);
@@ -529,22 +543,164 @@ public class UpdateHandler {
     public void setSettings(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
         // show location
         Message message = callbackQuery.getMessage();
-        if (callback.equals(SETTING_TIMEZONE)) {
+        if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_5")) {
             EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
             emrm.setMessageId(message.getMessageId());
-            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons());
+            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_5")));
             emrm.setChatId(message.getChatId());
             executeFunction.execute(emrm);
         } else if (callback.startsWith(SETTING_TIMEZONE)) {
             System.out.println(callback);
-            Pattern p = Pattern.compile(SETTING_TIMEZONE + "_(-?\\d\\d\\d\\d)$");
+            Pattern p = Pattern.compile(SETTING_TIMEZONE + "_(-?\\d\\d\\d\\d)");
             Matcher m = p.matcher(callback);
             m.find();
             String timezone = m.group(1);
             System.out.println("Selected timezone: " + timezone + ", userId = " + callbackQuery.getFrom().getId());
             jdbcTemplate.update(UPDATE_TIMEZONE.getValue(), Long.parseLong(timezone), callbackQuery.getFrom().getId());
-            executeFunction.execute(new SendMessage(message.getChat().getId().toString(), "Ok, timezone updated"));
+            executeFunction.execute(new SendMessage(
+                    message.getChat().getId().toString(),
+                    "Ok, timezone updated to " + getTimeZoneByOffset(Integer.parseInt(timezone)).getDisplayName()
+            ));
+
+            if (callback.endsWith("f")) {
+                SendMessage sendMessage = new SendMessage();
+
+                sendMessage.setChatId(message.getChatId());
+                sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. ");
+                sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+                sendMessage.setParseMode("Markdown");
+
+                executeFunction.execute(sendMessage);
+            }
+
+            EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+            emrm.setMessageId(message.getMessageId());
+            emrm.setChatId(message.getChatId());
+            executeFunction.execute(emrm);
         }
+    }
+
+    public void showHideTimestamps(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
+        Message message = callbackQuery.getMessage();
+
+        EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+        emrm.setMessageId(message.getMessageId());
+        emrm.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+        emrm.setChatId(message.getChatId());
+
+        EditMessageCaption emc = new EditMessageCaption();
+        emc.setChatId(message.getChatId());
+        emc.setMessageId(message.getMessageId());
+
+        if (callback.equals("timestamps_show")) {
+            long userId = callbackQuery.getFrom().getId();
+            UserService.UserInfo userInfo = userService.loadUserInfoById(userId);
+            System.out.println("callback date: " + callbackQuery.getMessage().getDate());
+            long audioMessageTime = callbackQuery.getMessage().getDate() * 1000L;
+            // 2104732264000
+            System.out.println("prev date: " + new Timestamp(audioMessageTime) + " - " + audioMessageTime);
+            Triplet<Long, Long, Long> getPullTimestamps = getPreviousPullTimestamp(userId, audioMessageTime);
+
+            // +1s because time is truncated
+            List<UserService.VoicePart> voiceParts = loadVoiceParts(
+                    getPullTimestamps.getFirst(),
+                    getPullTimestamps.getSecond()  + 1000L,
+                    getPullTimestamps.getThird()
+            );
+            System.out.println(Arrays.toString(voiceParts.toArray()));
+            String caption = "";
+            if (voiceParts.size() > 1
+                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
+                caption = getAudioCaption(voiceParts, userInfo.timezone);
+            }
+            System.out.println("new caption: " + caption);
+
+            emc.setCaption(caption);
+            emc.setParseMode("Markdown");
+            emrm.setReplyMarkup(ButtonsService.getHideTimestampsButton());
+
+        } else if (callback.equals("timestamps_hide")) {
+            emc.setCaption("");
+            emrm.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+        }
+        executeFunction.execute(emc);
+        executeFunction.execute(emrm);
+    }
+
+    private Triplet<Long, Long, Long> getPreviousPullTimestamp(long userId, long nextTimestamp) {
+        return jdbcTemplate.query(GET_PREVIOUS_PULL_TIMESTAMP.getValue(),
+                (rs) -> {
+                    Triplet<Long, Long, Long> triplet = new Triplet<>();
+                    if (rs.next()) {
+                        triplet.setFirst(rs.getLong("followee_id"));
+                        triplet.setSecond(rs.getTimestamp("pull_timestamp").getTime());
+                        triplet.setThird(rs.getTimestamp("last_pull_timestamp").getTime());
+                    }
+                    return triplet;
+                }, new Timestamp(nextTimestamp), userId);
+    }
+
+    private List<UserService.VoicePart> loadVoiceParts(long userId, Long pullTimestamp, Long lastPullTimestamp) {
+        if (pullTimestamp == null || lastPullTimestamp == null) return Collections.emptyList();
+
+        System.out.println("Loading voice parts for user " + userId + ", " + new Timestamp(pullTimestamp) + " - " + new Timestamp(lastPullTimestamp) );
+
+
+        return jdbcTemplate.queryForStream(GET_VOICE_PARTS_BY_TIMESTAMPS.getValue(),
+                (rs, rn) -> {
+                    UserService.VoicePart voicePart = new UserService.VoicePart();
+                    voicePart.duration = rs.getLong("duration");
+                    voicePart.description = rs.getString("description");
+                    voicePart.recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
+                    return voicePart;
+                }, userId, new Timestamp(lastPullTimestamp), new Timestamp(pullTimestamp)).collect(Collectors.toList());
+    }
+
+    private String getAudioCaption(List<UserService.VoicePart> voiceParts, int zoneOffset) {
+        long start = 0;
+        SimpleDateFormat sdf = new SimpleDateFormat("`yyyy.MM.dd, HH:mm`");
+        sdf.setTimeZone(getTimeZoneByOffset(zoneOffset));
+        StringJoiner sj = new StringJoiner("\n");
+        for (UserService.VoicePart vp : voiceParts) {
+
+            String timeHandle = getTimeHandle(start);
+            String recordingTimestamp = sdf.format(new Timestamp(vp.recordingTimestamp));
+            String voiceDescription = vp.getDescription();
+            voiceDescription = voiceDescription == null ? "" : "\n" + voiceDescription;
+
+            String caption = timeHandle + " - " + recordingTimestamp + voiceDescription;
+            sj.add(caption);
+
+            start += vp.duration;
+        }
+        return "\n" + sj.toString();
+    }
+
+    private String getTimeHandle(long start) {
+        long hours = start / 3600;
+        long seconds = start % 60;
+        long minutes = (start - (hours * 3600)) / 60;
+        String timeHandle = "";
+        if (hours > 0) {
+            timeHandle += hours + ":";
+        }
+        timeHandle += String.format("%02d:%02d", minutes, seconds);
+        return timeHandle;
+    }
+
+    private TimeZone getTimeZoneByOffset(int zoneOffset) {
+        String zoneId = "GMT";
+        if (zoneOffset < 0) {
+            zoneId += "-";
+        } else {
+            zoneId += "+";
+        }
+        zoneId += zoneOffset / 100;
+        zoneId += ":";
+        zoneId += String.format("%02d", zoneOffset % 100);
+        TimeZone tz = TimeZone.getTimeZone(zoneId);
+        System.out.println("timezone: " + tz.getDisplayName() + ", from " + zoneId);
+        return tz;
     }
 
     public void getTutorial(long chatId, String data) throws TelegramApiException
@@ -556,69 +712,54 @@ public class UpdateHandler {
 
         if (stage == 1)
         {
-            MessageEntity messageEntity = new MessageEntity();
-            messageEntity.setType("bold");
-            messageEntity.setOffset(0);
-            messageEntity.setLength(7);
-
-            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
-            sendVideo.setCaption("Step 1. Subscribe to your friend and wait for confirmation.");
+            sendVideo.setCaption("*Subscribe* to your friend and wait for *confirmation*.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired1.mp4")));
             sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setParseMode("Markdown");
 
             sendVideoFunction.execute(sendVideo);
         }
         else if (stage == 2)
         {
-            MessageEntity messageEntity = new MessageEntity();
-            messageEntity.setType("bold");
-            messageEntity.setOffset(0);
-            messageEntity.setLength(7);
-            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
-
-            sendVideo.setCaption("Step 2. Record a voice message to share your thoughts with your subscribers. " +
-                                     "\n -> Don't worry if you don't succeed. You can remove record by clicking the button 'Remove this recording'." +
-                                     "\n -> You can record voice messages whenever you want. Your subscribers will get all of them in one file.");
+            sendVideo.setCaption("*Record* a voice message to share your thoughts with your subscribers. " +
+                                     "\n - Don't worry if you don't succeed. You can *remove* record by clicking the button 'Remove this recording'." +
+                                     "\n - You can record voice messages whenever you want. Your subscribers will get all of them *in one file*." +
+                                     "\n - You can edit your voice message to *add description*.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired2.mp4")));
+            sendVideo.setParseMode("Markdown");
             sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
 
             sendVideoFunction.execute(sendVideo);
         }
         else if (stage == 3)
         {
-            MessageEntity messageEntity = new MessageEntity();
-            messageEntity.setType("bold");
-            messageEntity.setOffset(0);
-            messageEntity.setLength(7);
-            sendVideo.setCaptionEntities(Arrays.asList(messageEntity));
-
-            sendVideo.setCaption("Step 3. Click 'Pull' to get updates from your friends.");
+            sendVideo.setCaption("Click 'Pull' to *get updates* from your friends.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired3.mp4")));
-            sendVideo.setReplyMarkup(ButtonsService.getFinishButton(stage));
+            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setParseMode("Markdown");
 
             sendVideoFunction.execute(sendVideo);
         }
         else if (stage == 4)
         {
-            SendMessage sendMessage = new SendMessage();
-
-            MessageEntity messageEntity = new MessageEntity();
-            messageEntity.setType("bold");
-            messageEntity.setOffset(0);
-            messageEntity.setLength(16);
-            sendMessage.setEntities(Arrays.asList(messageEntity));
-
-            sendMessage.setChatId(chatId);
-            sendMessage.setText("Congratulations! Indulge yourself in listening and recording!");
-            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
-
-            executeFunction.execute(sendMessage);
 
             SendMessage lastStep = new SendMessage();
-            lastStep.setText("One last optional step - setup your timezone for proper date and time handling");
+            lastStep.setText("*Setup your timezone* for proper date and time handling. You can change it later via /settings command.");
+            lastStep.setParseMode("Markdown");
             lastStep.setChatId(chatId);
-            lastStep.setReplyMarkup(ButtonsService.getTimezoneMarkup());
+            lastStep.setReplyMarkup(ButtonsService.getTimezoneMarkup(stage));
             executeFunction.execute(lastStep);
+        }
+        else if (stage == 5) {
+
+            SendMessage sendMessage = new SendMessage();
+
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. ");
+            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+            sendMessage.setParseMode("Markdown");
+
+            executeFunction.execute(sendMessage);
         }
     }
 

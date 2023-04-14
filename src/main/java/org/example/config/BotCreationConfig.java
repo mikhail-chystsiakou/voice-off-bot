@@ -4,6 +4,7 @@ import org.example.bot.MyTelegramBot;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
+import org.example.util.PullProcessingSet;
 import org.example.util.SendAudioFunction;
 import org.example.util.SendVideoFunction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,8 @@ public class BotCreationConfig {
     UserService userService;
     @Autowired
     TaskExecutor taskExecutor;
+    @Autowired
+    PullProcessingSet pullProcessingSet;
 
     @Bean
     public MyTelegramBot bot(BotConfig botConfig,
@@ -33,7 +36,7 @@ public class BotCreationConfig {
         botOptions.setBaseUrl(botConfig.apiUrl);
         MyTelegramBot bot = null;
         try {
-            bot = new MyTelegramBot(botOptions, botConfig, updateHandler, userService, taskExecutor);
+            bot = new MyTelegramBot(botOptions, botConfig, updateHandler, userService, taskExecutor, pullProcessingSet);
             System.out.println("Bot connected to api: " + botConfig.apiUrl);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);

@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS user_audios
     description varchar,
     file_size bigint, -- in bytes
     recording_timestamp timestamp with time zone default current_timestamp,
+    pull_count bigint,
+    ok_message_id bigint,
 
     constraint audios_pk primary key (user_id, file_order_number)
 );
