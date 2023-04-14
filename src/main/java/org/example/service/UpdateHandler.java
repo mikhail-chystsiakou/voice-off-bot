@@ -563,10 +563,10 @@ public class UpdateHandler {
     public void setSettings(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
         // show location
         Message message = callbackQuery.getMessage();
-        if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_5")) {
+        if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_6")) {
             EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
             emrm.setMessageId(message.getMessageId());
-            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_5")));
+            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_6")));
             emrm.setChatId(message.getChatId());
             executeFunction.execute(emrm);
         } else if (callback.startsWith(SETTING_TIMEZONE)) {
