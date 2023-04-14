@@ -28,6 +28,7 @@ public class Constants
         String SUBSCRIBE_REQUEST_SENT = "Ok, request to follow {0} sent";
         String SUBSCRIBE_REQUEST_QUESTION = "{0} wants to subscribe. Do you confirm?";
         String ALREADY_SUBSCRIBED = "You already subscribed to {0}";
+        String REQUEST_ALREADY_SENT = "Your request has already been sent to the user";
     }
 
     public interface Settings {

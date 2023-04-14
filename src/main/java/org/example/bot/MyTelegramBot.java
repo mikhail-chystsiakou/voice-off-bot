@@ -108,7 +108,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.getTutorial(message.getChatId(), 1);
                 } else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
                     updateHandler.getSettings(message);
-                } else {
+                } else if (ButtonCommands.FOLLOWERS.getDescription().equals(inputMessage)) {
+                    updateHandler.getFollowers(message);
+                }else if (ButtonCommands.FOLLOWING.getDescription().equals(inputMessage)) {
+                    updateHandler.getSubscriptions(message);
+                }else {
                     updateHandler.unsupportedResponse(message);
                 }
             }

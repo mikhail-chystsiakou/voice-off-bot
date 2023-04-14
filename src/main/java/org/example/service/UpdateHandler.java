@@ -142,6 +142,12 @@ public class UpdateHandler {
             executeFunction.execute(sendMessage);
             return;
         }
+        if (Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId)))
+        {
+            sendMessage.setText(REQUEST_ALREADY_SENT);
+            executeFunction.execute(sendMessage);
+            return;
+        }
         UserService.UserInfo userInfo = userService.loadUserInfoById(contactId);
         SendMessage messageForFollowee = new SendMessage();
         messageForFollowee.setChatId(userInfo.getChatId());
@@ -451,7 +457,7 @@ public class UpdateHandler {
                 result.setText(MessageFormat.format(UNSUBSCRIBED, followee.getUserNameWithAt()));
 
                 SendMessage unsubscribeNotification = new SendMessage();
-                unsubscribeNotification.setChatId(followee.getChatId());
+                unsubscribeNotification.setChatId(message.getChatId());
                 unsubscribeNotification.setText(MessageFormat.format(SUBSCRIBER_UNSUBSCRIBED, followee.getUserNameWithAt()));
                 executeFunction.execute(unsubscribeNotification);
             } else {

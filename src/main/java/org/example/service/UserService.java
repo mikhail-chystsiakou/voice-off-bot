@@ -131,9 +131,7 @@ public class UserService
             if (followers.size() == 1) {
                 prefix = "You have 1 follower by now: ";
             }
-            String followersString = followers.stream()
-                    .map(i -> "@" + i)
-                    .collect(Collectors.joining(", "));
+            String followersString = String.join(", ", followers);
             sm.setText(prefix + followersString);
         }
         return sm;
@@ -150,9 +148,7 @@ public class UserService
             if (subscriptions.size() == 1) {
                 prefix = "You have 1 subscription by now: ";
             }
-            String followersString = subscriptions.stream()
-                    .map(i -> "@" + i)
-                    .collect(Collectors.joining(", "));
+            String followersString = String.join(", ", subscriptions);
             sm.setText(prefix + followersString);
         }
         return sm;
