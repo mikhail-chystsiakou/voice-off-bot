@@ -278,6 +278,8 @@ public class UserService
                 new Timestamp(nextPullTimestamp), userId
         ).collect(Collectors.toList());
 
+        UserInfo userInfo = loadUserInfoById(userId);
+
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
             System.out.println(fpt);
@@ -299,7 +301,7 @@ public class UserService
             List<VoicePart> voiceParts = getVoiceParts(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
             if (voiceParts.size() > 1
                     || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
-                sendAudio.setCaption(getAudioCaption(voiceParts));
+                sendAudio.setCaption(getAudioCaption(voiceParts, userInfo.getTimezone()));
             }
 
 
@@ -344,10 +346,10 @@ public class UserService
         }
     }
 
-    private String getAudioCaption(List<VoicePart> voiceParts) {
+    private String getAudioCaption(List<VoicePart> voiceParts, int zoneOffset) {
         long start = 0;
         SimpleDateFormat sdf = new SimpleDateFormat("`yyyy.MM.dd, HH:mm:ss`");
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        sdf.setTimeZone(getTimeZoneByOffset(zoneOffset));
         StringJoiner sj = new StringJoiner("\n\n");
         for (VoicePart vp : voiceParts) {
 
@@ -362,6 +364,21 @@ public class UserService
             start += vp.duration;
         }
         return "\n" + sj.toString();
+    }
+
+    private TimeZone getTimeZoneByOffset(int zoneOffset) {
+        String zoneId = "GMT";
+        if (zoneOffset < 0) {
+            zoneId += "-";
+        } else {
+            zoneId += "+";
+        }
+        zoneId += zoneOffset / 100;
+        zoneId += ":";
+        zoneId += String.format("%02d", zoneOffset % 100);
+        TimeZone tz = TimeZone.getTimeZone(zoneId);
+        System.out.println("timezone: " + tz.getDisplayName() + ", from " + zoneId);
+        return tz;
     }
 
     private String getTimeHandle(long start) {
@@ -428,7 +445,8 @@ public class UserService
                         String firstName = rs.getString("first_name");
                         String lastName = rs.getString("last_name");
                         String followeeChatId = rs.getString("chat_id");
-                        return new UserService.UserInfo(userId, followeeChatId, username, firstName, lastName);
+                        int timezone = rs.getInt("time_zone");
+                        return new UserService.UserInfo(userId, followeeChatId, username, firstName, lastName, timezone);
                     },
                     userId
             );
@@ -447,6 +465,7 @@ public class UserService
         String username;
         String firstName;
         String lastName;
+        int timezone;
 
 
         public String getUserNameWithAt()

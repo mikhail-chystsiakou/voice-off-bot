@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.Constants;
 import org.example.config.BotConfig;
+import org.example.enums.BotCommands;
 import org.example.storage.VoiceStorage;
 import org.example.util.*;
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -24,9 +26,12 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.example.Constants.Messages.*;
 import static org.example.enums.Queries.*;
+import static org.example.Constants.Settings.*;
 
 @Component
 public class UpdateHandler {
@@ -513,6 +518,35 @@ public class UpdateHandler {
         executeFunction.execute(sendMessage);
     }
 
+    public void getSettings(Message message) throws TelegramApiException {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(message.getChatId());
+        sendMessage.setReplyMarkup(ButtonsService.getSettingsButtons());
+        sendMessage.setText(SELECT_SETTING);
+        executeFunction.execute(sendMessage);
+    }
+
+    public void setSettings(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
+        // show location
+        Message message = callbackQuery.getMessage();
+        if (callback.equals(SETTING_TIMEZONE)) {
+            EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+            emrm.setMessageId(message.getMessageId());
+            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons());
+            emrm.setChatId(message.getChatId());
+            executeFunction.execute(emrm);
+        } else if (callback.startsWith(SETTING_TIMEZONE)) {
+            System.out.println(callback);
+            Pattern p = Pattern.compile(SETTING_TIMEZONE + "_(-?\\d\\d\\d\\d)$");
+            Matcher m = p.matcher(callback);
+            m.find();
+            String timezone = m.group(1);
+            System.out.println("Selected timezone: " + timezone + ", userId = " + callbackQuery.getFrom().getId());
+            jdbcTemplate.update(UPDATE_TIMEZONE.getValue(), Long.parseLong(timezone), callbackQuery.getFrom().getId());
+            executeFunction.execute(new SendMessage(message.getChat().getId().toString(), "Ok, timezone updated"));
+        }
+    }
+
     public void getTutorial(long chatId, String data) throws TelegramApiException
     {
         SendVideo sendVideo = new SendVideo();
@@ -579,6 +613,12 @@ public class UpdateHandler {
             sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
 
             executeFunction.execute(sendMessage);
+
+            SendMessage lastStep = new SendMessage();
+            lastStep.setText("One last optional step - setup your timezone for proper date and time handling");
+            lastStep.setChatId(chatId);
+            lastStep.setReplyMarkup(ButtonsService.getTimezoneMarkup());
+            executeFunction.execute(lastStep);
         }
     }
 

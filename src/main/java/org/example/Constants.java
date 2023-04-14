@@ -10,6 +10,7 @@ public class Constants
     public interface Messages {
         String SEND_START_FIRST = "Send /start command before using the bot";
         String CHOOSE_OPTION_FROM_MENU = "Choose the option from menu below";
+        String SELECT_SETTING = "Select setting to update";
         String OK_RECORDED = "Ok, recorded";
         String OK_REMOVED = "Ok, removed";
         String RECORDING_NOT_FOUND = "Recording not found";
@@ -27,5 +28,10 @@ public class Constants
         String SUBSCRIBE_REQUEST_SENT = "Ok, request to follow {0} sent";
         String SUBSCRIBE_REQUEST_QUESTION = "{0} wants to subscribe. Do you confirm?";
         String ALREADY_SUBSCRIBED = "You already subscribed to {0}";
+    }
+
+    public interface Settings {
+        String SETTINGS = "settings";
+        String SETTING_TIMEZONE = "settings_timezone";
     }
 }

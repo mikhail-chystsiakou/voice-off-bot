@@ -29,10 +29,11 @@ public enum Queries
             " order by recording_timestamp"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_USER("delete from users where user_id = ?"),
-    GET_USER_ID_BY_ID("select user_id, chat_id, username, first_name, last_name from users where user_id = ?"),
+    GET_USER_ID_BY_ID("select user_id, chat_id, username, first_name, last_name, time_zone from users where user_id = ?"),
     REMOVE_LAST_USER_RECORD("delete from user_audios where user_id = ? and message_id = ?"),
     GET_USER_NAMES_BY_USER_ID("select username, first_name, last_name from users where user_id = ?"),
-    UPDATE_MESSAGE_DESCRIPTION("update user_audios set description = ? where user_id = ? and message_id = ?");
+    UPDATE_MESSAGE_DESCRIPTION("update user_audios set description = ? where user_id = ? and message_id = ?"),
+    UPDATE_TIMEZONE("update users set time_zone = ? where user_id = ?");
 
     String value;
 
