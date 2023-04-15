@@ -3,6 +3,8 @@ package org.example.service;
 import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
+import org.example.model.UserInfo;
+import org.example.repository.UserRepository;
 import org.example.storage.VoiceStorage;
 import org.example.util.*;
 import org.slf4j.Logger;
@@ -73,6 +75,12 @@ public class UpdateHandler {
     @Autowired
     PullProcessingSet pullProcessingSet;
 
+    @Autowired
+    ButtonsService buttonsService;
+
+    @Autowired
+    UserRepository userRepository;
+
     public void storeMessageDescription(Message message, boolean sendConfirmation) throws TelegramApiException {
         int messageId = message.getMessageId();
         long userId = message.getFrom().getId();
@@ -111,7 +119,7 @@ public class UpdateHandler {
         SendMessage reply = new SendMessage();
         reply.setText(OK_RECORDED + ". Nobody pulled this recording yet");
         reply.setChatId(message.getChatId());
-        reply.setReplyMarkup(ButtonsService.getButtonForDeletingRecord(message.getMessageId()));
+        reply.setReplyMarkup(buttonsService.getButtonForDeletingRecord(message.getMessageId()));
         Message replyMessage = executeFunction.execute(reply);
         jdbcTemplate.update(SET_OK_MESSAGE_ID.getValue(),
                 replyMessage.getMessageId(),
@@ -127,7 +135,7 @@ public class UpdateHandler {
         long chatId = message.getChatId();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
-        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
 
         if (userService.getUserById(contactId) == null)
         {
@@ -137,17 +145,17 @@ public class UpdateHandler {
         }
         if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, contactId)))
         {
-            UserService.UserInfo contact = userService.loadUserInfoById(contactId);
+            UserInfo contact = userRepository.loadUserInfoById(contactId);
             sendMessage.setText(MessageFormat.format(ALREADY_SUBSCRIBED, contact.getUserNameWithAt()));
             executeFunction.execute(sendMessage);
             return;
         }
-        UserService.UserInfo userInfo = userService.loadUserInfoById(contactId);
+        UserInfo userInfo = userRepository.loadUserInfoById(contactId);
         SendMessage messageForFollowee = new SendMessage();
         messageForFollowee.setChatId(userInfo.getChatId());
         messageForFollowee.setText(MessageFormat.format(
                 SUBSCRIBE_REQUEST_QUESTION, getUserNameWithAt(message)));
-        messageForFollowee.setReplyMarkup(ButtonsService.getInlineKeyboardMarkupForSubscription(userId));
+        messageForFollowee.setReplyMarkup(buttonsService.getInlineKeyboardMarkupForSubscription(userId));
 
         sendMessage.setText(MessageFormat.format(SUBSCRIBE_REQUEST_SENT, userInfo.getUserNameWithAt()));
 
@@ -235,7 +243,7 @@ public class UpdateHandler {
         }
         else {
             SendMessage sendMessage = new SendMessage(message.getChatId().toString(), Constants.YOU_HAVE_ALREADY_REGISTERED);
-            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+            sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
             executeFunction.execute(sendMessage);
         }
 
@@ -245,7 +253,7 @@ public class UpdateHandler {
     {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
-        sendMessage.setReplyMarkup(ButtonsService.getButtonsForTutorial());
+        sendMessage.setReplyMarkup(buttonsService.getButtonsForTutorial());
         sendMessage.setText(Constants.YOU_WAS_ADDED_TO_THE_SYSTEM + "\nDo you want a quick guide?");
         executeFunction.execute(sendMessage);
     }
@@ -439,7 +447,7 @@ public class UpdateHandler {
         SendMessage result = new SendMessage();
         result.setChatId(message.getChatId());
 
-        UserService.UserInfo followee = userService.loadUserInfoById(followeeId);
+        UserInfo followee = userRepository.loadUserInfoById(followeeId);
         if (followee == null)
         {
             result.setText(NOT_JOINED);
@@ -458,7 +466,7 @@ public class UpdateHandler {
                 result.setText(MessageFormat.format(NOT_SUBSCRIBED, followee.getUserNameWithAt()));
             }
         }
-        result.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        result.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(result);
     }
 
@@ -467,7 +475,7 @@ public class UpdateHandler {
         Long userId = message.getUserShared().getUserId();
         SendMessage result = new SendMessage();
         result.setChatId(message.getChatId());
-        UserService.UserInfo follower = userService.loadUserInfoById(userId);
+        UserInfo follower = userRepository.loadUserInfoById(userId);
         if (follower == null)
         {
             result.setText(NOT_JOINED);
@@ -486,7 +494,7 @@ public class UpdateHandler {
                 result.setText(MessageFormat.format(NOT_SUBSCRIBER, follower.getUserNameWithAt()));
             }
         }
-        result.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        result.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(result);
     }
 
@@ -519,7 +527,7 @@ public class UpdateHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
         sendMessage.setText(CHOOSE_OPTION_FROM_MENU);
-        sendMessage.setReplyMarkup(ButtonsService.getManageSubscriptionsMenu());
+        sendMessage.setReplyMarkup(buttonsService.getManageSubscriptionsMenu());
         executeFunction.execute(sendMessage);
     }
 
@@ -547,7 +555,7 @@ public class UpdateHandler {
     {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
-        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
         sendMessage.setText(CHOOSE_OPTION_FROM_MENU);
         executeFunction.execute(sendMessage);
     }
@@ -555,7 +563,7 @@ public class UpdateHandler {
     public void getSettings(Message message) throws TelegramApiException {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
-        sendMessage.setReplyMarkup(ButtonsService.getSettingsButtons());
+        sendMessage.setReplyMarkup(buttonsService.getSettingsButtons());
         sendMessage.setText(SELECT_SETTING);
         executeFunction.execute(sendMessage);
     }
@@ -566,7 +574,7 @@ public class UpdateHandler {
         if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_6")) {
             EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
             emrm.setMessageId(message.getMessageId());
-            emrm.setReplyMarkup(ButtonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_6")));
+            emrm.setReplyMarkup(buttonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_6")));
             emrm.setChatId(message.getChatId());
             executeFunction.execute(emrm);
         } else if (callback.startsWith(SETTING_TIMEZONE)) {
@@ -587,7 +595,7 @@ public class UpdateHandler {
 
                 sendMessage.setChatId(message.getChatId());
                 sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. ");
-                sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+                sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
                 sendMessage.setParseMode("Markdown");
 
                 executeFunction.execute(sendMessage);
@@ -605,7 +613,7 @@ public class UpdateHandler {
 
         EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setMessageId(message.getMessageId());
-        emrm.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+        emrm.setReplyMarkup(buttonsService.getShowTimestampsButton());
         emrm.setChatId(message.getChatId());
 
         EditMessageCaption emc = new EditMessageCaption();
@@ -614,7 +622,7 @@ public class UpdateHandler {
 
         if (callback.equals("timestamps_show")) {
             long userId = callbackQuery.getFrom().getId();
-            UserService.UserInfo userInfo = userService.loadUserInfoById(userId);
+            UserInfo userInfo = userRepository.loadUserInfoById(userId);
             System.out.println("callback date: " + callbackQuery.getMessage().getDate());
             long audioMessageTime = callbackQuery.getMessage().getDate() * 1000L;
             // 2104732264000
@@ -631,17 +639,17 @@ public class UpdateHandler {
             String caption = "";
             if (voiceParts.size() > 1
                     || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
-                caption = getAudioCaption(voiceParts, userInfo.timezone);
+                caption = getAudioCaption(voiceParts, userInfo.getTimezone());
             }
             System.out.println("new caption: " + caption);
 
             emc.setCaption(caption);
             emc.setParseMode("Markdown");
-            emrm.setReplyMarkup(ButtonsService.getHideTimestampsButton());
+            emrm.setReplyMarkup(buttonsService.getHideTimestampsButton());
 
         } else if (callback.equals("timestamps_hide")) {
             emc.setCaption("");
-            emrm.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+            emrm.setReplyMarkup(buttonsService.getShowTimestampsButton());
         }
         executeFunction.execute(emc);
         executeFunction.execute(emrm);
@@ -732,7 +740,7 @@ public class UpdateHandler {
         {
             sendVideo.setCaption("*Subscribe* to your friend and wait for *confirmation*.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired1.mp4")));
-            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
             sendVideo.setParseMode("Markdown");
 
             sendVideoFunction.execute(sendVideo);
@@ -745,7 +753,7 @@ public class UpdateHandler {
                                      "\n - You can edit your voice message to *add description*.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired2.mp4")));
             sendVideo.setParseMode("Markdown");
-            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
 
             sendVideoFunction.execute(sendVideo);
         }
@@ -753,7 +761,7 @@ public class UpdateHandler {
         {
             sendVideo.setCaption("Click 'Pull' to *get updates* from your friends.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired3.mp4")));
-            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
             sendVideo.setParseMode("Markdown");
 
             sendVideoFunction.execute(sendVideo);
@@ -762,7 +770,7 @@ public class UpdateHandler {
         {
             sendVideo.setCaption("You can add a *description* to each recording.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired4.mp4")));
-            sendVideo.setReplyMarkup(ButtonsService.getNextButton(stage));
+            sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
             sendVideo.setParseMode("Markdown");
 
             sendVideoFunction.execute(sendVideo);
@@ -773,7 +781,7 @@ public class UpdateHandler {
             lastStep.setText("*Setup your timezone* for proper date and time handling. You can change it later via /settings command.");
             lastStep.setParseMode("Markdown");
             lastStep.setChatId(chatId);
-            lastStep.setReplyMarkup(ButtonsService.getTimezoneMarkup(stage));
+            lastStep.setReplyMarkup(buttonsService.getTimezoneMarkup(stage));
             executeFunction.execute(lastStep);
         }
         else if (stage == 6) {
@@ -782,7 +790,7 @@ public class UpdateHandler {
 
             sendMessage.setChatId(chatId);
             sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. ");
-            sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+            sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
             sendMessage.setParseMode("Markdown");
 
             executeFunction.execute(sendMessage);
@@ -800,7 +808,7 @@ public class UpdateHandler {
         sendMessage.setChatId(chatId);
         sendMessage.setEntities(Arrays.asList(messageEntity));
         sendMessage.setText("OK. You can go through the tutorial whenever you want using the /tutorial command");
-        sendMessage.setReplyMarkup(ButtonsService.getInitMenuButtons());
+        sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
     }
 

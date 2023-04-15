@@ -8,7 +8,8 @@ public enum ButtonCommands
     UNSUBSCRIBE("/unsubscribe", "Unsubscribe from"),
     SUBSCRIBE("/subscribe", "Subscribe to"),
     REMOVE_RECORDING("/removerecording", "Remove this recording"),
-    RETURN_TO_MAIN_MENU("/return", "Return")
+    RETURN_TO_MAIN_MENU("/return", "Return"),
+    SEND_FEEDBACK("/feedback", "Send Feedback")
     ;
 
     String command;

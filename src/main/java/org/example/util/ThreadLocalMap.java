@@ -6,13 +6,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ThreadLocalMap {
-    private static ConcurrentHashMap<Long, ConcurrentHashMap<String, String>> tmpFiles;
+    private static ConcurrentHashMap<Long, ConcurrentHashMap<String, Object>> tmpFiles;
+
+    public static final String VALUE_TRUE = "TRUE";
+    public static final String KEY_USER_INFO = "KEY_USER_INFO";
 
     public ThreadLocalMap() {
         tmpFiles = new ConcurrentHashMap<>();
     }
 
-    public void put(String key, String value) {
+    public void put(String key, Object value) {
         long threadId = Thread.currentThread().getId();
         tmpFiles.compute(threadId, (k, v) -> {
             if (v == null) {
@@ -23,10 +26,10 @@ public class ThreadLocalMap {
         });
     }
 
-    public String get(String key) {
+    public <T> T get(String key) {
         long threadId = Thread.currentThread().getId();
 
-        return tmpFiles.getOrDefault(threadId, new ConcurrentHashMap<>()).get(key);
+        return (T) tmpFiles.getOrDefault(threadId, new ConcurrentHashMap<>()).get(key);
     }
 
     public void clear() {

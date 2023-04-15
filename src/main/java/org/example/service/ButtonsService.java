@@ -1,6 +1,12 @@
 package org.example.service;
 
 import org.example.enums.ButtonCommands;
+import org.example.model.UserInfo;
+import org.example.util.ThreadLocalMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -9,11 +15,20 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButtonRequestUser;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+import static org.example.util.ThreadLocalMap.*;
+
+@Component
 public class ButtonsService
 {
-    public static InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(long userId){
+    private static final Logger logger = LoggerFactory.getLogger(ButtonsService.class);
+    @Autowired
+    ThreadLocalMap tlm;
+
+    public InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(long userId){
         InlineKeyboardButton inlineKeyboardButtonYes = new InlineKeyboardButton();
         inlineKeyboardButtonYes.setText("Yes");
         inlineKeyboardButtonYes.setCallbackData("Yes_" + userId);
@@ -27,7 +42,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getInitMenuButtons()
+    public ReplyKeyboard getInitMenuButtons()
     {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
 
@@ -37,12 +52,25 @@ public class ButtonsService
         KeyboardButton buttonForManagingSubscriptions = new KeyboardButton();
         buttonForManagingSubscriptions.setText(ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription());
 
-        keyboardMarkup.setKeyboard(Arrays.asList(new KeyboardRow(Arrays.asList(buttonForPull, buttonForManagingSubscriptions))));
+        List<KeyboardRow> rows = new ArrayList<>();
+        rows.add(new KeyboardRow(Arrays.asList(buttonForPull, buttonForManagingSubscriptions)));
+
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        if (userInfo == null) {
+            logger.warn("UserInfo is null!", new RuntimeException());
+        }
+        if (userInfo != null && userInfo.isFeedbackEnabled()) {
+            KeyboardButton feedbackButton = new KeyboardButton();
+            feedbackButton.setText(ButtonCommands.SEND_FEEDBACK.getDescription());
+            rows.add(new KeyboardRow(Arrays.asList(feedbackButton)));
+        }
+
+        keyboardMarkup.setKeyboard(Arrays.asList());
         keyboardMarkup.setResizeKeyboard(true);
         return keyboardMarkup;
     }
 
-    public static ReplyKeyboard getSettingsButtons()
+    public ReplyKeyboard getSettingsButtons()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Set timezone");
@@ -53,7 +81,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup getShowTimestampsButton()
+    public InlineKeyboardMarkup getShowTimestampsButton()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Show Timestamps");
@@ -65,7 +93,7 @@ public class ButtonsService
     }
 
 
-    public static InlineKeyboardMarkup getHideTimestampsButton()
+    public InlineKeyboardMarkup getHideTimestampsButton()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Hide Timestamps");
@@ -76,7 +104,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getTimezoneMarkup(int stage)
+    public ReplyKeyboard getTimezoneMarkup(int stage)
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Set timezone");
@@ -91,7 +119,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getTimezoneMarkup()
+    public ReplyKeyboard getTimezoneMarkup()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Set timezone");
@@ -102,8 +130,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-
-    public static ReplyKeyboard getManageSubscriptionsMenu()
+    public ReplyKeyboard getManageSubscriptionsMenu()
     {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
 
@@ -140,7 +167,7 @@ public class ButtonsService
         return keyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup getButtonForDeletingRecord(Integer messageId){
+    public InlineKeyboardMarkup getButtonForDeletingRecord(Integer messageId){
         InlineKeyboardButton deleteButton = new InlineKeyboardButton();
         deleteButton.setText(ButtonCommands.REMOVE_RECORDING.getDescription());
         deleteButton.setCallbackData("remove_" + messageId.toString());
@@ -150,7 +177,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getButtonsForTutorial()
+    public ReplyKeyboard getButtonsForTutorial()
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
         approveButton.setText("Yes");
@@ -165,7 +192,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getNextButton(int stage)
+    public ReplyKeyboard getNextButton(int stage)
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
         approveButton.setText("Next (" + stage + "/4)");
@@ -176,7 +203,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static ReplyKeyboard getFinishButton(int stage)
+    public ReplyKeyboard getFinishButton(int stage)
     {
         InlineKeyboardButton finishButton = new InlineKeyboardButton();
         finishButton.setText("Finish");
@@ -187,7 +214,7 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup getTimezonesButtons(boolean finish)
+    public InlineKeyboardMarkup getTimezonesButtons(boolean finish)
     {
         InlineKeyboardButton utc_1200 = new InlineKeyboardButton();
         utc_1200.setText("UTC-12:00");

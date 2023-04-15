@@ -10,8 +10,11 @@ import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
+import org.example.model.UserInfo;
+import org.example.repository.UserRepository;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
+import org.example.util.ThreadLocalMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -37,6 +40,7 @@ import java.util.stream.Collectors;
 
 import static org.example.Constants.Messages.OK_RECORDED;
 import static org.example.enums.Queries.*;
+import static org.example.util.ThreadLocalMap.KEY_USER_INFO;
 
 @Component
 public class UserService
@@ -59,6 +63,15 @@ public class UserService
     @Autowired
     @Lazy
     ExecuteFunction executeFunction;
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    ThreadLocalMap tlm;
+
+    @Autowired
+    ButtonsService buttonsService;
 
     @Autowired
     public UserService(DataSourceConfig dataSourceConfig)
@@ -158,7 +171,7 @@ public class UserService
         return sm;
     }
 
-    public int unsubscribe(Message message, UserService.UserInfo followee){
+    public int unsubscribe(Message message, UserInfo followee){
         return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
     }
 
@@ -183,7 +196,7 @@ public class UserService
 //        return sm;
 //    }
 
-    public int removeFollower(Message message, UserService.UserInfo follower) throws TelegramApiException {
+    public int removeFollower(Message message, UserInfo follower) throws TelegramApiException {
         return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
     }
 
@@ -291,8 +304,6 @@ public class UserService
                 new Timestamp(nextPullTimestamp), userId
         ).collect(Collectors.toList());
 
-        UserInfo userInfo = loadUserInfoById(userId);
-
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
             System.out.println(fpt);
@@ -335,7 +346,7 @@ public class UserService
                             emt.setText(OK_RECORDED + ". Recording was pulled " + vp.getPullCount() + " times");
                         }
                         emt.setMessageId(followeeOkMessageId);
-                        emt.setReplyMarkup(ButtonsService.getButtonForDeletingRecord((int)vp.messageId));
+                        emt.setReplyMarkup(buttonsService.getButtonForDeletingRecord((int)vp.messageId));
                         try {
                             executeFunction.execute(emt);
                         } catch (TelegramApiException e) {
@@ -346,12 +357,6 @@ public class UserService
 
                 }
             }
-
-//            if (voiceParts.size() > 1
-//                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
-//                sendAudio.setCaption(getAudioCaption(voiceParts, userInfo.getTimezone()));
-//            }
-
 
             Path filePath = Paths.get(localFile.getAbsoluteFileURL());
             long fileSize = 0;
@@ -374,7 +379,7 @@ public class UserService
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
             if (voiceParts.size() > 1 || (voiceParts.size() == 1 && voiceParts.get(0).getDescription() != null)) {
-                sendAudio.setReplyMarkup(ButtonsService.getShowTimestampsButton());
+                sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton());
             }
             String profilePicture = fileUtils.getProfilePicturePath(fpt.followeeId);
             if (profilePicture !=null) {
@@ -464,6 +469,11 @@ public class UserService
 
     }
 
+    public void loadUserInfo(long userId) {
+        UserInfo userInfo = userRepository.loadUserInfoById(userId);
+        tlm.put(KEY_USER_INFO, userInfo);
+    }
+
     private class Recording {
         String userName;
         String fileId;
@@ -485,53 +495,6 @@ public class UserService
 
         public Timestamp getRecordingDate() {
             return recordingDate;
-        }
-    }
-
-    UserService.UserInfo loadUserInfoById(Long userId) {
-        try
-        {
-            return jdbcTemplate.queryForObject(
-                    Queries.GET_USER_ID_BY_ID.getValue(),
-                    (rs, n) -> {
-                        String username = rs.getString("username");
-                        String firstName = rs.getString("first_name");
-                        String lastName = rs.getString("last_name");
-                        String followeeChatId = rs.getString("chat_id");
-                        int timezone = rs.getInt("time_zone");
-                        return new UserService.UserInfo(userId, followeeChatId, username, firstName, lastName, timezone);
-                    },
-                    userId
-            );
-        }
-        catch (EmptyResultDataAccessException e)
-        {
-            return null;
-        }
-    }
-
-    @Data
-    @AllArgsConstructor
-    class UserInfo {
-        Long userId;
-        String chatId;
-        String username;
-        String firstName;
-        String lastName;
-        int timezone;
-
-
-        public String getUserNameWithAt()
-        {
-            if (username != null)
-            {
-                return "@" + username;
-            }
-            if (lastName != null)
-            {
-                return firstName + " " + lastName;
-            }
-            return firstName;
         }
     }
 }

@@ -5,9 +5,12 @@ import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
+import org.example.model.UserInfo;
+import org.example.repository.UserRepository;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.PullProcessingSet;
+import org.example.util.ThreadLocalMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
@@ -31,18 +34,22 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     UserService userService;
     TaskExecutor taskExecutor;
     PullProcessingSet pullProcessingSet;
+    ThreadLocalMap tlm;
 
     public MyTelegramBot(DefaultBotOptions botOptions,
                          BotConfig botConfig,
                          UpdateHandler updateHandler,
                          UserService userService,
                          TaskExecutor taskExecutor,
-                         PullProcessingSet pullProcessingSet) throws TelegramApiException
+                         PullProcessingSet pullProcessingSet,
+                         ThreadLocalMap tlm) throws TelegramApiException
     {
         super(botOptions, botConfig.getToken());
         this.updateHandler = updateHandler;
         this.userService = userService;
         this.taskExecutor = taskExecutor;
+        this.pullProcessingSet = pullProcessingSet;
+        this.tlm = tlm;
 
         List<BotCommand> botCommands = Arrays.stream(BotCommands.values())
                 .map(co -> new BotCommand(co.getCommand(), co.getDescription()))
@@ -58,6 +65,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         taskExecutor.execute(() -> {
             try {
                 handleUpdate(update);
+                tlm.clear();
             } catch (Exception e) {
                 try {
                     if (update != null && update.hasMessage() && update.getMessage().getFrom() != null) {
@@ -75,13 +83,24 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
     private void handleUpdate(Update update) throws TelegramApiException, IOException {
         logger.trace("Start processing message with id '{}'", update.getUpdateId());
+        Message message = null;
+        long userId;
         if (update.hasMessage() || update.hasEditedMessage()) {
-            Message message = update.getMessage();
+            message = update.getMessage();
             if (update.hasEditedMessage()) message = update.getEditedMessage();
 
             if (!checkRegistered(message)) {
                 return;
-            } if (update.hasEditedMessage()) {
+            }
+            userId = message.getFrom().getId();
+            userService.loadUserInfo(userId);
+        } else if (update.hasCallbackQuery()) {
+            userId = update.getCallbackQuery().getFrom().getId();
+            userService.loadUserInfo(userId);
+        }
+
+        if (message != null) {
+            if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
             } else if (message.hasVoice()){
                 updateHandler.handleVoiceMessage(message);

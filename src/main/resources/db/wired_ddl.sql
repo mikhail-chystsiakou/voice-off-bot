@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS users
     last_name varchar,
     registered_date timestamp without time zone,
     chat_id bigint,
-    time_zone bigint,
+    time_zone bigint default 300,
+    feedback_enabled bool default false,
 
     CONSTRAINT users_pkey PRIMARY KEY (user_id)
 );
@@ -64,3 +65,12 @@ create table pull_stats
 );
 
 CREATE INDEX index_name ON pull_stats (user_id, followee_id, pull_timestamp);
+
+create table feedbacks (
+    user_id bigint,
+    message_id bigint,
+    text varchar,
+    file_id varchar,
+
+    primary key (user_id, message_id)
+);
