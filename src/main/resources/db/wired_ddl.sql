@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users
     registered_date timestamp without time zone,
     chat_id bigint,
     time_zone bigint,
+    notifications int,
 
     CONSTRAINT users_pkey PRIMARY KEY (user_id)
 );
@@ -61,6 +62,14 @@ create table pull_stats
     processing_time_millis bigint,
     file_size          bigint,
     processing_time     interval
+);
+
+CREATE TABLE IF NOT EXISTS users_delay_notifications
+(
+    user_id bigint,
+    estimated_time time,
+
+    constraint users_delay_notifications_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade
 );
 
 CREATE INDEX index_name ON pull_stats (user_id, followee_id, pull_timestamp);

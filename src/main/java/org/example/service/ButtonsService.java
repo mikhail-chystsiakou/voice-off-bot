@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.Constants;
 import org.example.enums.ButtonCommands;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
@@ -48,8 +49,12 @@ public class ButtonsService
         timezoneButton.setText("Set timezone");
         timezoneButton.setCallbackData("settings_timezone");
 
+        InlineKeyboardButton notificationsButton = new InlineKeyboardButton();
+        notificationsButton.setText("Set up notifications");
+        notificationsButton.setCallbackData("settings_notifications");
+
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton), Arrays.asList(notificationsButton)));
         return inlineKeyboardMarkup;
     }
 
@@ -364,4 +369,23 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
+    public static InlineKeyboardMarkup getNotificationSettingsButtons()
+    {
+//        InlineKeyboardButton instantNotificationButton = new InlineKeyboardButton();
+//        instantNotificationButton.setText("Get instant notifications");
+//        instantNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_INSTANT);
+
+        InlineKeyboardButton pullNotificationButton = new InlineKeyboardButton();
+        pullNotificationButton.setText("Disable");
+        pullNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_PULL);
+
+        InlineKeyboardButton onceADayNotificationButton = new InlineKeyboardButton();
+        onceADayNotificationButton.setText("Delay");
+        onceADayNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_ONCE_A_DAY);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(pullNotificationButton),
+                                                       Arrays.asList(onceADayNotificationButton)));
+        return inlineKeyboardMarkup;
+    }
 }
