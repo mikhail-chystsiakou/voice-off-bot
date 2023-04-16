@@ -19,10 +19,17 @@ public class ScheduledTaskService
     @Autowired
     UserService userService;
 
-    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.MINUTES)
-    public void checkUserNotifications(){
+    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
+    public void checkUserDelayNotifications(){
         List<Long> notifications = userService.getDelayNotifications();
-        notifications.stream().forEach(chatId -> new SendMessage(chatId.toString(), "You have new recordings."));
+        notifications.forEach(chatId -> new SendMessage(chatId.toString(), "You have new recordings."));
+        logger.info("Scheduler: " + notifications);
+    }
+
+    @Scheduled(fixedRate = 15, timeUnit = TimeUnit.MINUTES)
+    public void checkUserInstantNotifications(){
+        List<Long> notifications = userService.getDelayNotifications();
+        notifications.forEach(chatId -> new SendMessage(chatId.toString(), "You have new recordings."));
         logger.info("Scheduler: " + notifications);
     }
 }

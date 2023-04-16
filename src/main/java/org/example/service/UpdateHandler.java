@@ -127,12 +127,23 @@ public class UpdateHandler {
                 message.getMessageId()
         );
         sendDelayNotifications(message.getFrom());
+        sendInstantNotifications(message.getFrom());
         //sendNotificationsToFollowers(message.getFrom());
+    }
+
+    private void sendInstantNotifications(User user)
+    {
+        userService.getUsersForInstantNotifications(user.getId()).forEach(userId -> {
+            LocalTime localTime = LocalTime.now();
+
+            LocalTime estimatedTime = localTime.plusMinutes(15);
+
+            userService.addUserNotification(userId, estimatedTime);
+        });
     }
 
     private void sendDelayNotifications(User user)
     {
-        logger.info("" + userService.getUsersForDelayNotifications(user.getId()));
         userService.getUsersForDelayNotifications(user.getId()).forEach((key, value) -> {
             LocalTime localTimeWithTimeZone = LocalTime.now(getTimeZoneByOffset(key).toZoneId());
             LocalTime localTime = LocalTime.now();
@@ -645,12 +656,15 @@ public class UpdateHandler {
         } else if (callback.startsWith(SETTING_NOTIFICATIONS)) {
             if (SETTING_NOTIFICATIONS_INSTANT.equals(callback)){
                 userService.updateNotificationSettings(callbackQuery.getFrom().getId(), 1);
+                userService.deleteUserFromDelayNotification(callbackQuery.getFrom().getId());
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
             }else if (SETTING_NOTIFICATIONS_PULL.equals(callback)) {
                 userService.updateNotificationSettings(callbackQuery.getFrom().getId(),0);
+                userService.deleteUserFromDelayNotification(callbackQuery.getFrom().getId());
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
             }else if (SETTING_NOTIFICATIONS_ONCE_A_DAY.equals(callback)) {
                 userService.updateNotificationSettings(callbackQuery.getFrom().getId(),2);
+                userService.deleteUserFromDelayNotification(callbackQuery.getFrom().getId());
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
             }
             else {
