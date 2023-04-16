@@ -66,7 +66,7 @@ public class ButtonsService
             rows.add(new KeyboardRow(Arrays.asList(feedbackButton)));
         }
 
-        keyboardMarkup.setKeyboard(Arrays.asList());
+        keyboardMarkup.setKeyboard(rows);
         keyboardMarkup.setResizeKeyboard(true);
         return keyboardMarkup;
     }
