@@ -46,11 +46,13 @@ public enum Queries
     UPDATE_FEEDBACK_ALLOWED_BY_USER("update users set feedback_mode_allowed = ? where user_id = ?"),
     UPDATE_FEEDBACK_ENABLED_BY_USER("update users set feedback_mode_enabled = ? where user_id = ?"),
     GET_USERS_FOR_DELAY_NOTIFICATIONS("select u.user_id, u.time_zone from users u, user_subscriptions s where s.followee_id = ? and s.user_id = u.user_id and u.notifications = 2"),
-    ADD_USER_NOTIFICATION("insert into users_delay_notifications(user_id, estimated_time) values(?, ?) ON CONFLICT DO NOTHING"),
+    GET_USERS_FOR_INSTANT_NOTIFICATIONS("select u.user_id from users u, user_subscriptions s where s.followee_id = ? and s.user_id = u.user_id and u.notifications = 1"),
+    GET_CHAT_ID_FOR_NOTIFICATIONS("select u.chat_id from users_notifications n, users u where n.estimated_time < current_time and n.user_id = u.user_id"),
+    DELETE_USER_FROM_DELAY_NOTIFICATIONS("delete from users_notifications where user_id = ?"),
+    CHECK_USER_NOTIFICATION("select count(*) from users_notifications where user_id = ?"),
+    ADD_USER_NOTIFICATION("insert into users_notifications(user_id, estimated_time) values(?, ?) ON CONFLICT DO NOTHING"),
     GET_CHAT_ID_FOR_DELAY_NOTIFICATIONS("select u.chat_id from users_delay_notifications n, users u where n.estimated_time < current_time and n.user_id = u.user_id"),
-    STORE_FEEDBACK("insert into user_feedbacks (user_id, message_id, text, file_id) values (?, ?, ?, ?)"),
-    DELETE_USER_FROM_DELAY_NOTIFICATIONS("delete from users_delay_notifications where user_id = ?");
-
+    STORE_FEEDBACK("insert into user_feedbacks (user_id, message_id, text, file_id) values (?, ?, ?, ?)");
     String value;
 
     Queries(String value){

@@ -278,7 +278,7 @@ public class UserService
     {
         final Map<Integer, List<Long>> result = new HashMap<>();
         jdbcTemplate.query(
-            Queries.GET_USERS_FOR_DELAY_NOTIFICATIONS.getValue(),
+            GET_USERS_FOR_DELAY_NOTIFICATIONS.getValue(),
             (rs, rn) -> {
                 long id = rs.getLong("user_id");
                 int timezone = rs.getInt("time_zone");
@@ -294,14 +294,26 @@ public class UserService
         return result;
     }
 
-    public int addUserNotification(Long userId, LocalTime estimatedTimeWithTimeZone)
+    public List<Long> getUsersForInstantNotifications(Long userId){
+        return jdbcTemplate.queryForList(GET_USERS_FOR_INSTANT_NOTIFICATIONS.getValue(), new Object[]{userId}, Long.class);
+    }
+
+    public void addUserNotification(Long userId, LocalTime estimatedTimeWithTimeZone)
     {
-        return jdbcTemplate.update(Queries.ADD_USER_NOTIFICATION.getValue(), userId, estimatedTimeWithTimeZone);
+        if (!isNotificationForUserExists(userId)){
+            jdbcTemplate.update(Queries.ADD_USER_NOTIFICATION.getValue(), userId, estimatedTimeWithTimeZone);
+        }
+    }
+
+    private boolean isNotificationForUserExists(Long userId)
+    {
+        int result = jdbcTemplate.queryForObject(Queries.CHECK_USER_NOTIFICATION.getValue(), new Object[]{userId}, Integer.class);
+        return result != 0;
     }
 
     public List<Long> getDelayNotifications()
     {
-        return jdbcTemplate.queryForList(Queries.GET_CHAT_ID_FOR_DELAY_NOTIFICATIONS.getValue(), Long.class);
+        return jdbcTemplate.queryForList(Queries.GET_CHAT_ID_FOR_NOTIFICATIONS.getValue(), Long.class);
     }
 
     public int deleteUserFromDelayNotification(Long userId)

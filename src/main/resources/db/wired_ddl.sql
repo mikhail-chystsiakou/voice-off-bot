@@ -78,10 +78,10 @@ create table user_feedbacks (
     primary key (user_id, message_id)
 );
 
-CREATE TABLE IF NOT EXISTS users_delay_notifications
+CREATE TABLE IF NOT EXISTS users_notifications
 (
     user_id bigint,
     estimated_time time,
 
-    constraint users_delay_notifications_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade
+    constraint users_notifications_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade
 );

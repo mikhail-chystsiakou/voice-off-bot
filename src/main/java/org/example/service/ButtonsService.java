@@ -468,13 +468,13 @@ public class ButtonsService
 
     public static InlineKeyboardMarkup getNotificationSettingsButtons()
     {
-//        InlineKeyboardButton instantNotificationButton = new InlineKeyboardButton();
-//        instantNotificationButton.setText("Get instant notifications");
-//        instantNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_INSTANT);
-
         InlineKeyboardButton pullNotificationButton = new InlineKeyboardButton();
         pullNotificationButton.setText("Disable");
         pullNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_PULL);
+
+        InlineKeyboardButton instantNotificationButton = new InlineKeyboardButton();
+        instantNotificationButton.setText("Instant");
+        instantNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_INSTANT);
 
         InlineKeyboardButton onceADayNotificationButton = new InlineKeyboardButton();
         onceADayNotificationButton.setText("Delay");
@@ -482,6 +482,7 @@ public class ButtonsService
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(pullNotificationButton),
+                                                       Arrays.asList(instantNotificationButton),
                                                        Arrays.asList(onceADayNotificationButton)));
         return inlineKeyboardMarkup;
     }
