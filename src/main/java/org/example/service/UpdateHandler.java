@@ -2,10 +2,10 @@ package org.example.service;
 
 import org.example.Constants;
 import org.example.config.BotConfig;
-import org.example.enums.BotCommands;
+import org.example.enums.Queries;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
-import org.example.storage.VoiceStorage;
+import org.example.storage.FileStorage;
 import org.example.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +21,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -58,7 +59,7 @@ public class UpdateHandler {
     SendVideoFunction sendVideoFunction;
 
     @Autowired
-    VoiceStorage voiceStorage;
+    FileStorage fileStorage;
 
     @Autowired
     JdbcTemplate jdbcTemplate;
@@ -80,6 +81,9 @@ public class UpdateHandler {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    ThreadLocalMap tlm;
 
     public void storeMessageDescription(Message message, boolean sendConfirmation) throws TelegramApiException {
         int messageId = message.getMessageId();
@@ -105,12 +109,12 @@ public class UpdateHandler {
     public void handleVoiceMessage(Message message) throws TelegramApiException {
 
         Voice voice = message.getVoice();
-        voiceStorage.storeVoice(
+        fileStorage.storeFile(
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
-                executeFunction::execute,
-                message.getMessageId()
+                message.getMessageId(),
+                "opus"
         );
         if (message.getCaption() != null) {
             storeMessageDescription(message, false);
@@ -477,6 +481,65 @@ public class UpdateHandler {
         executeFunction.execute(userService.getSubscriptions(message.getFrom().getId(), message.getChatId()));
     }
 
+    public void storeFeedback(Message message) throws TelegramApiException {
+        String feedbackText = null;
+        if (message.hasText()) {
+            feedbackText = message.getText();
+        }
+
+        String fileId = null;
+        int duration = 0;
+        String extension = ".bin";
+        if (message.hasVoice()) {
+            Voice voice = message.getVoice();
+            fileId = voice.getFileId();
+            duration = voice.getDuration();
+            extension = "opus";
+        } else if (message.hasAudio()) {
+            Audio audio = message.getAudio();
+            fileId = audio.getFileId();
+            duration = audio.getDuration();
+            extension = "mp3";
+        } else if (message.hasDocument()) {
+            Document document = message.getDocument();
+            fileId = document.getFileId();
+            extension = "doc";
+        } else if (message.hasPhoto()) {
+            List<PhotoSize> photos = message.getPhoto();
+            PhotoSize photo = photos.get(0);
+            for (PhotoSize ps : photos) {
+                if (ps.getWidth() > photo.getWidth()) {
+                    photo = ps;
+                }
+            }
+            fileId = photo.getFileId();
+            extension = "jpg";
+        } else if (message.hasSticker()) {
+            Sticker sticker = message.getSticker();
+            PhotoSize photo = sticker.getThumb();
+            fileId = photo.getFileId();
+            extension = "jpg";
+        } else if (message.hasVideo()) {
+            Video video = message.getVideo();
+            fileId = video.getFileId();
+            duration = video.getDuration();
+            extension = "mp4";
+
+        }
+
+        if (feedbackText == null && fileId == null) {
+            executeFunction.execute(new SendMessage(message.getChatId().toString(), "Only text, audio, voice, photo, video and sticker feedbacks will be saved"));
+            return;
+        }
+
+        if (fileId != null) {
+            fileStorage.storeFile(message.getFrom().getId(), fileId, duration,
+                    message.getMessageId(), extension, FileStorage.TYPE_FEEDBACK);
+        }
+        userService.storeFeedback(message.getFrom().getId(), message.getMessageId(), feedbackText, fileId);
+        executeFunction.execute(new SendMessage(message.getChatId().toString(), "Thanks, feedback recorded"));
+    }
+
     public void unsubscribeFrom(Message message) throws TelegramApiException
     {
         Long followeeId = message.getUserShared().getUserId();
@@ -567,6 +630,36 @@ public class UpdateHandler {
         sendMessage.setReplyMarkup(buttonsService.getManageSubscriptionsMenu());
         executeFunction.execute(sendMessage);
     }
+
+    public void enableFeedbackMode(Message message) throws TelegramApiException {
+        changeFeedbackMode(message, true);
+    }
+
+    public void disableFeedbackMode(Message message) throws TelegramApiException {
+        changeFeedbackMode(message, false);
+    }
+
+    public void changeFeedbackMode(Message message, boolean newState) throws TelegramApiException {
+        long userId = message.getFrom().getId();
+        userService.updateFeedbackEnabled(userId, newState);
+        UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
+        if (userInfo == null) {
+            logger.warn("UserInfo is null", new RuntimeException());
+        } else {
+            userInfo.setFeedbackModeEnabled(newState);
+        }
+        SendMessage sm = new SendMessage();
+        sm.setChatId(message.getChatId());
+        if (newState) {
+            sm.setText("Feedback Mode enabled. All inputs will be sent to BeWired team");
+        } else {
+            sm.setText("Feedback Mode disabled");
+        }
+        sm.setReplyMarkup(buttonsService.getInitMenuButtons());
+        executeFunction.execute(sm);
+    }
+
+
 
     public void removeRecording(CallbackQuery callbackQuery) throws TelegramApiException
     {
@@ -660,6 +753,37 @@ public class UpdateHandler {
                 emrm.setReplyMarkup(ButtonsService.getNotificationSettingsButtons());
                 executeFunction.execute(emrm);
             }
+        } else if (callback.startsWith(SETTING_FEEDBACK)) {
+            boolean feedbackAllowed = SETTING_FEEDBACK_ALLOWED.equals(callback);
+            userService.updateFeedbackAllowed(callbackQuery.getFrom().getId(), feedbackAllowed);
+            boolean feedbackModeDisabled = false;
+            UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
+            if (userInfo == null) {
+                logger.warn("User info is null", new RuntimeException());
+            } else {
+                userInfo.setFeedbackModeAllowed(feedbackAllowed);
+                if (!feedbackAllowed) {
+                    userInfo.setFeedbackModeEnabled(false);
+                    userService.updateFeedbackEnabled(callbackQuery.getFrom().getId(), false);
+                    feedbackModeDisabled = true;
+                }
+                tlm.put(ThreadLocalMap.KEY_USER_INFO, userInfo);
+            }
+
+            EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+            emrm.setMessageId(message.getMessageId());
+            emrm.setChatId(message.getChatId());
+            emrm.setReplyMarkup(buttonsService.getSettingsButtons());
+            executeFunction.execute(emrm);
+
+            String replyText = "Ok, feedback mode " + (feedbackAllowed ? "allowed" : "prohibited");
+            if (feedbackModeDisabled) replyText += " and disabled";
+
+            SendMessage reply = new SendMessage();
+            reply.setText(replyText);
+            reply.setChatId(message.getChatId());
+            reply.setReplyMarkup(buttonsService.getInitMenuButtons());
+            executeFunction.execute(reply);
         }
     }
 

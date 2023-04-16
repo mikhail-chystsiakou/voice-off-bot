@@ -1,6 +1,5 @@
 package org.example.service;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.example.config.BotConfig;
 import org.example.config.DataSourceConfig;
@@ -151,6 +150,10 @@ public class UserService
         return sm;
     }
 
+    public void storeFeedback(long userId, long messageId, String text, String fileId) {
+        jdbcTemplate.update(STORE_FEEDBACK.getValue(), userId, messageId, text, fileId);
+    }
+
     public SendMessage getSubscriptions(Long userId, Long chatId) {
         SendMessage sm = new SendMessage();
         sm.setChatId(chatId);
@@ -258,6 +261,16 @@ public class UserService
     public int updateNotificationSettings(long userId, int value)
     {
         return jdbcTemplate.update(Queries.UPDATE_NOTIFICATION_BY_USER.getValue(), value, userId);
+    }
+
+    public int updateFeedbackAllowed(long userId, boolean isFeedbackAllowed)
+    {
+        return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ALLOWED_BY_USER.getValue(), isFeedbackAllowed, userId);
+    }
+
+    public int updateFeedbackEnabled(long userId, boolean isFeedbackEnabled)
+    {
+        return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ENABLED_BY_USER.getValue(), isFeedbackEnabled, userId);
     }
 
     //Map<timezone, users>

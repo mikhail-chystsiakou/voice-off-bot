@@ -27,6 +27,10 @@ public class BotConfig {
     @Value("${bot.storage.path.voices}")
     String voicesPath;
 
+
+    @Value("${bot.storage.path.feedbacks}")
+    String feedbacksPath;
+
     @Value("${bot.storage.path.profilePictures}")
     String profilePicturesPath;
 

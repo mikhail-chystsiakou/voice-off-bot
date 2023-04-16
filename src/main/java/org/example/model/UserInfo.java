@@ -12,7 +12,8 @@ public class UserInfo {
     String firstName;
     String lastName;
     int timezone;
-    boolean feedbackEnabled;
+    boolean feedbackModeAllowed;
+    boolean feedbackModeEnabled;
 
 
     public String getUserNameWithAt()

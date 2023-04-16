@@ -23,8 +23,12 @@ public class UserRepository {
                         String lastName = rs.getString("last_name");
                         String followeeChatId = rs.getString("chat_id");
                         int timezone = rs.getInt("time_zone");
-                        boolean feedbackEnabled = rs.getBoolean("feedback_enabled");
-                        return new UserInfo(userId, followeeChatId, username, firstName, lastName, timezone, feedbackEnabled);
+                        boolean feedbackModeAllowed = rs.getBoolean("feedback_mode_allowed");
+                        boolean feedbackModeEnabled = rs.getBoolean("feedback_mode_enabled");
+                        return new UserInfo(userId, followeeChatId,
+                                username, firstName, lastName,
+                                timezone,
+                                feedbackModeAllowed, feedbackModeEnabled);
                     },
                     userId
             );

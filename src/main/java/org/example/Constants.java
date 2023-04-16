@@ -34,6 +34,9 @@ public class Constants
     public interface Settings {
         String SETTINGS = "settings";
         String SETTING_TIMEZONE = "settings_timezone";
+        String SETTING_FEEDBACK = "settings_feedback";
+        String SETTING_FEEDBACK_ALLOWED = "settings_feedback_allowed";
+        String SETTING_FEEDBACK_PROHIBITED = "settings_feedback_prohibited";
         String SETTING_NOTIFICATIONS = "settings_notifications";
         String SETTING_NOTIFICATIONS_INSTANT = "settings_notifications_instant";
         String SETTING_NOTIFICATIONS_PULL = "settings_notifications_pull";

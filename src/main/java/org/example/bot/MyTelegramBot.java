@@ -6,7 +6,6 @@ import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.model.UserInfo;
-import org.example.repository.UserRepository;
 import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.PullProcessingSet;
@@ -17,6 +16,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -100,22 +100,36 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
 
         if (message != null) {
+            UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
             if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
             }
             else if (message.hasVoice()){
-                updateHandler.handleVoiceMessage(message);
+                if (userInfo.isFeedbackModeEnabled()) {
+                    updateHandler.storeFeedback(message);
+                } else {
+                    updateHandler.handleVoiceMessage(message);
+                }
             }
             else if (message.hasText()){
                 String inputMessage = message.getText();
                 if (inputMessage.startsWith(BotCommands.START.getCommand())){
                     updateHandler.registerUser(message);
                 }
-                else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().equals(inputMessage)){
+                else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().startsWith(inputMessage)){
                     updateHandler.pull(message);
                 }
-                else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage) || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().equals(inputMessage)){
+                else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage)
+                        || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().startsWith(inputMessage)){
                     updateHandler.getManageSubscriptionsMenu(message);
+                }
+                else if (ButtonCommands.ENABLE_FEEDBACK_MODE.getCommand().equals(inputMessage)
+                || ButtonCommands.ENABLE_FEEDBACK_MODE.getDescription().startsWith(inputMessage)){
+                    updateHandler.enableFeedbackMode(message);
+                }
+                else if (ButtonCommands.DISABLE_FEEDBACK_MODE.getCommand().equals(inputMessage)
+                || ButtonCommands.DISABLE_FEEDBACK_MODE.getDescription().startsWith(inputMessage)){
+                    updateHandler.disableFeedbackMode(message);
                 }
                 else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
                     updateHandler.unsubscribeFrom(message);
@@ -126,7 +140,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 else if (BotCommands.END.getCommand().equals(inputMessage)) {
                     updateHandler.end(message);
                 }
-                else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
+                else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().startsWith(inputMessage)){
                     updateHandler.returnMainMenu(message);
                 }
                 else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
@@ -135,13 +149,19 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
                     updateHandler.getSettings(message);
                 }
-                else if (ButtonCommands.FOLLOWERS.getDescription().equals(inputMessage)) {
+                else if (ButtonCommands.FOLLOWERS.getDescription().startsWith(inputMessage)) {
                     updateHandler.getFollowers(message);
                 }
-                else if (ButtonCommands.FOLLOWING.getDescription().equals(inputMessage)) {
+                else if (ButtonCommands.FOLLOWING.getDescription().startsWith(inputMessage)) {
                     updateHandler.getSubscriptions(message);
                 }
                 else {
+                    execute(new SendMessage(message.getChatId().toString(), "Not a command"));
+                }
+            } else {
+                if (userInfo.isFeedbackModeEnabled()) {
+                    updateHandler.storeFeedback(message);
+                } else {
                     updateHandler.unsupportedResponse(message);
                 }
             }
