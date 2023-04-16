@@ -20,7 +20,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -29,14 +28,15 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.example.Constants.Messages.*;
-import static org.example.enums.Queries.*;
 import static org.example.Constants.Settings.*;
+import static org.example.enums.Queries.*;
 
 @Component
 public class UpdateHandler {
@@ -126,6 +126,36 @@ public class UpdateHandler {
                 message.getFrom().getId(),
                 message.getMessageId()
         );
+        sendDelayNotifications(message.getFrom());
+        //sendNotificationsToFollowers(message.getFrom());
+    }
+
+    private void sendDelayNotifications(User user)
+    {
+        logger.info("" + userService.getUsersForDelayNotifications(user.getId()));
+        userService.getUsersForDelayNotifications(user.getId()).forEach((key, value) -> {
+            LocalTime localTimeWithTimeZone = LocalTime.now(getTimeZoneByOffset(key).toZoneId());
+            LocalTime localTime = LocalTime.now();
+
+            logger.info("local time " + localTime);
+            logger.info("localTimeWithTimeZone " + localTimeWithTimeZone);
+            LocalTime estimatedTime = localTime.plusHours(12);
+            LocalTime estimatedTimeWithTimeZone = localTimeWithTimeZone.plusHours(12);
+            logger.info("estimatedTimeWithTimeZone " + estimatedTimeWithTimeZone);
+            int delta = 0;
+            if (estimatedTimeWithTimeZone.getHour() < 9)
+            {
+                delta = 9 - estimatedTimeWithTimeZone.getHour();
+            }
+            else if (estimatedTimeWithTimeZone.getHour() > 21)
+            {
+                delta = 24 - estimatedTimeWithTimeZone.getHour() + 9;
+            }
+            logger.info("delta " + delta);
+            LocalTime estimatedTimeWithDelta = estimatedTime.plusHours(delta);
+            logger.info("estimatedTimeWithDelta" + estimatedTimeWithDelta);
+            value.forEach(userId -> userService.addUserNotification(userId, estimatedTimeWithDelta));
+        });
     }
 
     public void subscribeTo(Message message) throws TelegramApiException
@@ -151,6 +181,12 @@ public class UpdateHandler {
             return;
         }
         UserInfo userInfo = userRepository.loadUserInfoById(contactId);
+        if (Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId)))
+        {
+            sendMessage.setText(REQUEST_ALREADY_SENT);
+            executeFunction.execute(sendMessage);
+            return;
+        }
         SendMessage messageForFollowee = new SendMessage();
         messageForFollowee.setChatId(userInfo.getChatId());
         messageForFollowee.setText(MessageFormat.format(
@@ -392,6 +428,7 @@ public class UpdateHandler {
             if (userService.isDataAvailable(message.getFrom().getId())) {
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available..."));
             }
+            userService.deleteUserFromDelayNotification(message.getFrom().getId());
         }
         statsService.pullEnd();
         statsService.storePullStatistics();
@@ -459,7 +496,7 @@ public class UpdateHandler {
                 result.setText(MessageFormat.format(UNSUBSCRIBED, followee.getUserNameWithAt()));
 
                 SendMessage unsubscribeNotification = new SendMessage();
-                unsubscribeNotification.setChatId(followee.getChatId());
+                unsubscribeNotification.setChatId(message.getChatId());
                 unsubscribeNotification.setText(MessageFormat.format(SUBSCRIBER_UNSUBSCRIBED, followee.getUserNameWithAt()));
                 executeFunction.execute(unsubscribeNotification);
             } else {
@@ -605,6 +642,24 @@ public class UpdateHandler {
             emrm.setMessageId(message.getMessageId());
             emrm.setChatId(message.getChatId());
             executeFunction.execute(emrm);
+        } else if (callback.startsWith(SETTING_NOTIFICATIONS)) {
+            if (SETTING_NOTIFICATIONS_INSTANT.equals(callback)){
+                userService.updateNotificationSettings(callbackQuery.getFrom().getId(), 1);
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
+            }else if (SETTING_NOTIFICATIONS_PULL.equals(callback)) {
+                userService.updateNotificationSettings(callbackQuery.getFrom().getId(),0);
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
+            }else if (SETTING_NOTIFICATIONS_ONCE_A_DAY.equals(callback)) {
+                userService.updateNotificationSettings(callbackQuery.getFrom().getId(),2);
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "Notification settings updated"));
+            }
+            else {
+                EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+                emrm.setMessageId(message.getMessageId());
+                emrm.setChatId(message.getChatId());
+                emrm.setReplyMarkup(ButtonsService.getNotificationSettingsButtons());
+                executeFunction.execute(emrm);
+            }
         }
     }
 

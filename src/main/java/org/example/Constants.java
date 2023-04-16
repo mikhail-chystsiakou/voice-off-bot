@@ -28,10 +28,15 @@ public class Constants
         String SUBSCRIBE_REQUEST_SENT = "Ok, request to follow {0} sent";
         String SUBSCRIBE_REQUEST_QUESTION = "{0} wants to subscribe. Do you confirm?";
         String ALREADY_SUBSCRIBED = "You already subscribed to {0}";
+        String REQUEST_ALREADY_SENT = "Your request has already been sent to the user";
     }
 
     public interface Settings {
         String SETTINGS = "settings";
         String SETTING_TIMEZONE = "settings_timezone";
+        String SETTING_NOTIFICATIONS = "settings_notifications";
+        String SETTING_NOTIFICATIONS_INSTANT = "settings_notifications_instant";
+        String SETTING_NOTIFICATIONS_PULL = "settings_notifications_pull";
+        String SETTING_NOTIFICATIONS_ONCE_A_DAY = "settings_notifications_once_a_day";
     }
 }

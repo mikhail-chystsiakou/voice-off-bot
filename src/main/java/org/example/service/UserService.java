@@ -3,8 +3,6 @@ package org.example.service;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.example.config.BotConfig;
-import org.example.ffmpeg.FFMPEG;
-import org.example.ffmpeg.FFMPEGResult;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
@@ -12,6 +10,8 @@ import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
+import org.example.ffmpeg.FFMPEG;
+import org.example.ffmpeg.FFMPEGResult;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.example.util.ThreadLocalMap;
@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -144,9 +145,7 @@ public class UserService
             if (followers.size() == 1) {
                 prefix = "You have 1 follower by now: ";
             }
-            String followersString = followers.stream()
-                    .map(i -> "@" + i)
-                    .collect(Collectors.joining(", "));
+            String followersString = String.join(", ", followers);
             sm.setText(prefix + followersString);
         }
         return sm;
@@ -163,9 +162,7 @@ public class UserService
             if (subscriptions.size() == 1) {
                 prefix = "You have 1 subscription by now: ";
             }
-            String followersString = subscriptions.stream()
-                    .map(i -> "@" + i)
-                    .collect(Collectors.joining(", "));
+            String followersString = String.join(", ", subscriptions);
             sm.setText(prefix + followersString);
         }
         return sm;
@@ -256,6 +253,47 @@ public class UserService
     public int updateNameColumn(Long userId, String columnName, String valueToSet)
     {
         return jdbcTemplate.update("update users set " + columnName + " = ? where user_id = ?", valueToSet, userId);
+    }
+
+    public int updateNotificationSettings(long userId, int value)
+    {
+        return jdbcTemplate.update(Queries.UPDATE_NOTIFICATION_BY_USER.getValue(), value, userId);
+    }
+
+    //Map<timezone, users>
+    public Map<Integer, List<Long>> getUsersForDelayNotifications(Long userId)
+    {
+        final Map<Integer, List<Long>> result = new HashMap<>();
+        jdbcTemplate.query(
+            Queries.GET_USERS_FOR_DELAY_NOTIFICATIONS.getValue(),
+            (rs, rn) -> {
+                long id = rs.getLong("user_id");
+                int timezone = rs.getInt("time_zone");
+                result.compute(timezone, (k, v) -> {
+                    if (v == null) v = new LinkedList<>();
+                    v.add(id);
+                    return  v;
+                });
+                return result;
+            },
+            userId);
+
+        return result;
+    }
+
+    public int addUserNotification(Long userId, LocalTime estimatedTimeWithTimeZone)
+    {
+        return jdbcTemplate.update(Queries.ADD_USER_NOTIFICATION.getValue(), userId, estimatedTimeWithTimeZone);
+    }
+
+    public List<Long> getDelayNotifications()
+    {
+        return jdbcTemplate.queryForList(Queries.GET_CHAT_ID_FOR_DELAY_NOTIFICATIONS.getValue(), Long.class);
+    }
+
+    public int deleteUserFromDelayNotification(Long userId)
+    {
+        return jdbcTemplate.update(Queries.DELETE_USER_FROM_DELAY_NOTIFICATIONS.getValue(), userId);
     }
 
     @Data

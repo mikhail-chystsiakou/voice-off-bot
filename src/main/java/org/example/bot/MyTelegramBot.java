@@ -102,32 +102,46 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         if (message != null) {
             if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
-            } else if (message.hasVoice()){
+            }
+            else if (message.hasVoice()){
                 updateHandler.handleVoiceMessage(message);
-            } else if (message.hasText()){
+            }
+            else if (message.hasText()){
                 String inputMessage = message.getText();
                 if (inputMessage.startsWith(BotCommands.START.getCommand())){
                     updateHandler.registerUser(message);
-                } else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().equals(inputMessage)){
+                }
+                else if (ButtonCommands.PULL.getCommand().equals(inputMessage) || ButtonCommands.PULL.getDescription().equals(inputMessage)){
                     updateHandler.pull(message);
-                } else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage) || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().equals(inputMessage)){
+                }
+                else if (ButtonCommands.MANAGE_SUBSCRIPTIONS.getCommand().equals(inputMessage) || ButtonCommands.MANAGE_SUBSCRIPTIONS.getDescription().equals(inputMessage)){
                     updateHandler.getManageSubscriptionsMenu(message);
-//                    updateHandler.getSubscriptions(message);
-                } else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
+                }
+                else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
                     updateHandler.unsubscribeFrom(message);
-                } else if (inputMessage.startsWith(ButtonCommands.REMOVE_SUBSCRIBER.getCommand())) {
+                }
+                else if (inputMessage.startsWith(ButtonCommands.REMOVE_SUBSCRIBER.getCommand())) {
                     updateHandler.removeSubscriber(message);
-                } else if (BotCommands.END.getCommand().equals(inputMessage)) {
+                }
+                else if (BotCommands.END.getCommand().equals(inputMessage)) {
                     updateHandler.end(message);
-//                } else if (inputMessage.startsWith(BotCommands.HELP.getCommand())) {
-//                    updateHandler.help(message);
-                } else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
+                }
+                else if (ButtonCommands.RETURN_TO_MAIN_MENU.getDescription().equals(inputMessage)){
                     updateHandler.returnMainMenu(message);
-                } else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
+                }
+                else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
                     updateHandler.getTutorial(message.getChatId(), 1);
-                } else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
+                }
+                else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
                     updateHandler.getSettings(message);
-                } else {
+                }
+                else if (ButtonCommands.FOLLOWERS.getDescription().equals(inputMessage)) {
+                    updateHandler.getFollowers(message);
+                }
+                else if (ButtonCommands.FOLLOWING.getDescription().equals(inputMessage)) {
+                    updateHandler.getSubscriptions(message);
+                }
+                else {
                     updateHandler.unsupportedResponse(message);
                 }
             }
