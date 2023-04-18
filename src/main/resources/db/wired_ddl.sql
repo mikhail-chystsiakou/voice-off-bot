@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     recording_timestamp timestamp with time zone default current_timestamp,
     pull_count bigint,
     ok_message_id bigint,
+    reply_to_message_id bigint,
 
     constraint audios_pk primary key (user_id, file_order_number)
 );
@@ -84,4 +85,13 @@ CREATE TABLE IF NOT EXISTS users_notifications
     estimated_time time,
 
     constraint users_notifications_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade
+);
+
+create table user_replies (
+  user_id bigint,
+  user_message_id bigint,
+  subscriber_id bigint,
+  last_pull_timestamp timestamp with time zone,
+
+  constraint replies_pk primary key (user_id, user_message_id, subscriber_id)
 );
