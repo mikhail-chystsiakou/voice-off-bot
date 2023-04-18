@@ -206,7 +206,7 @@ public class ButtonsService
     public InlineKeyboardMarkup getButtonForDeletingRecord(Integer messageId){
         InlineKeyboardButton deleteButton = new InlineKeyboardButton();
         deleteButton.setText(ButtonCommands.REMOVE_RECORDING.getDescription());
-        deleteButton.setCallbackData("remove_" + messageId.toString());
+        deleteButton.setCallbackData("confirmremove_" + messageId.toString());
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(deleteButton)));
@@ -484,6 +484,21 @@ public class ButtonsService
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(pullNotificationButton),
                                                        Arrays.asList(instantNotificationButton),
                                                        Arrays.asList(onceADayNotificationButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup getRemovingConfirmationButtons(Integer messageId)
+    {
+        InlineKeyboardButton noButton = new InlineKeyboardButton();
+        noButton.setText(Constants.No);
+        noButton.setCallbackData("remove_no");
+
+        InlineKeyboardButton yesButton = new InlineKeyboardButton();
+        yesButton.setText(Constants.YES);
+        yesButton.setCallbackData("remove_" + messageId.toString());
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(noButton, yesButton)));
         return inlineKeyboardMarkup;
     }
 }
