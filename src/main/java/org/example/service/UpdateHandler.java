@@ -2,7 +2,6 @@ package org.example.service;
 
 import org.example.Constants;
 import org.example.config.BotConfig;
-import org.example.enums.Queries;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
 import org.example.storage.FileStorage;
@@ -492,6 +491,26 @@ public class UpdateHandler {
         executeFunction.execute(userService.getSubscriptions(message.getFrom().getId(), message.getChatId()));
     }
 
+    public void processReply(Message message) throws TelegramApiException {
+        Message repliedTo = message.getReplyToMessage();
+        if (!message.hasVoice()) {
+            executeFunction.execute(
+                    new SendMessage(message.getChatId().toString(), "Only voice replies supported")
+            );
+            return;
+        }
+//        Voice voice = message.getVoice();
+//
+//        fileStorage.storeFile(
+//                message.getFrom().getId(),
+//                voice.getFileId(),
+//                voice.getDuration(),
+//                message.getMessageId(),
+//                "opus"
+//        );
+
+    }
+
     public void storeFeedback(Message message) throws TelegramApiException {
         String feedbackText = null;
         if (message.hasText()) {
@@ -619,7 +638,7 @@ public class UpdateHandler {
         executeFunction.execute(new SendMessage(message.getChatId().toString(), "This is help"));
     }
 
-    public void unsupportedResponse(Message message) throws TelegramApiException
+    public void unsupportedTextInput(Message message) throws TelegramApiException
     {
         executeFunction.execute(new SendMessage(message.getChatId().toString(), "Only voice messages will be recorded"));
     }
