@@ -202,6 +202,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             if (answer.equals("declineTimezone"))            {
                 updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), 6);
             }
+            if (answer.equals(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription()))
+            {
+                updateHandler.getSettings(update.getCallbackQuery().getMessage());
+            }
         }
         logger.trace("Finish processing message with id '{}'", update.getUpdateId());
     }

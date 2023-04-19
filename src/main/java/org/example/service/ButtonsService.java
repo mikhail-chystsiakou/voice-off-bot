@@ -288,10 +288,15 @@ public class ButtonsService
         utc0800.setText("+08:00");
         utc0800.setCallbackData("settings_timezone_0800" + (finish ? "f" : ""));
 
+        InlineKeyboardButton previousMenuButton = new InlineKeyboardButton();
+        previousMenuButton.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+        previousMenuButton.setCallbackData(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(
                 Arrays.asList(utc0000, utc0100, utc0200, utc0300),
-                Arrays.asList(utc0500, utc0600, utc0700, utc0800)
+                Arrays.asList(utc0500, utc0600, utc0700, utc0800),
+                Arrays.asList(previousMenuButton)
         ));
         return inlineKeyboardMarkup;
     }
@@ -477,13 +482,16 @@ public class ButtonsService
         instantNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_INSTANT);
 
         InlineKeyboardButton onceADayNotificationButton = new InlineKeyboardButton();
-        onceADayNotificationButton.setText("Delay");
+        onceADayNotificationButton.setText("Delayed");
         onceADayNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_ONCE_A_DAY);
 
+        InlineKeyboardButton previousMenuButton = new InlineKeyboardButton();
+        previousMenuButton.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+        previousMenuButton.setCallbackData(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(pullNotificationButton),
-                                                       Arrays.asList(instantNotificationButton),
-                                                       Arrays.asList(onceADayNotificationButton)));
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(instantNotificationButton, onceADayNotificationButton),
+                                                       Arrays.asList(pullNotificationButton, previousMenuButton)));
         return inlineKeyboardMarkup;
     }
 
