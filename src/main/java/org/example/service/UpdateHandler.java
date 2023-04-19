@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.Constants;
 import org.example.config.BotConfig;
+import org.example.ffmpeg.FileInfo;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
 import org.example.storage.FileStorage;
@@ -25,6 +26,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
@@ -41,6 +45,7 @@ import static org.example.enums.Queries.*;
 @Component
 public class UpdateHandler {
     private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
+    private static final String FILE_DATE_PATTERN = "yyyy" + File.separator + "MM" + File.separator + "dd_HH_mm_ss_SSS";
 
     @Autowired
     UserService userService;
@@ -691,7 +696,7 @@ public class UpdateHandler {
 
 
 
-    public void removeRecording(CallbackQuery callbackQuery) throws TelegramApiException
+    public void removeRecording(CallbackQuery callbackQuery) throws TelegramApiException, IOException
     {
         if (callbackQuery.getData().contains("confirm"))
         {
@@ -712,15 +717,44 @@ public class UpdateHandler {
                 Long userId = callbackQuery.getFrom().getId();
                 logger.debug("Removing message by id: {}, user: {}", messageId, userId);
                 System.out.println("Removing message by id: " + messageId + ", user: " + userId);
+
+                removeFileFromServer(userId, messageId);
                 int updatedRows = userService.removeRecordByUserIdAndMessageId(userId, messageId);
-                sendMessage.setReplyToMessageId(Integer.valueOf(messageId));
-                if (updatedRows > 0) {
+                if (updatedRows > 0)
+                {
+                    sendMessage.setReplyToMessageId(Integer.valueOf(messageId));
                     sendMessage.setText(OK_REMOVED);
-                } else {
+                }
+                else
+                {
                     sendMessage.setText(RECORDING_NOT_FOUND);
                 }
             }
             executeFunction.execute(sendMessage);
+        }
+    }
+
+    private void removeFileFromServer(Long userId, String messageId) throws IOException
+    {
+        FileInfo fileInfo = userService.getFileIdByUserAndMessageId(userId, Integer.valueOf(messageId));
+        if (fileInfo != null)
+        {
+            java.sql.Date recordingTimestamp = new Date(fileInfo.getRecordingTimestamp());
+            SimpleDateFormat sdf = new SimpleDateFormat(FILE_DATE_PATTERN);
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String recordingTimestampString = sdf.format(recordingTimestamp);
+            String sourceFilePath = botConfig.getStoragePath() + botConfig.getVoicesPath() + File.separator + userId + File.separator
+                + recordingTimestampString + "_" + fileInfo.getDuration() + "_" + fileInfo.getFileId() + ".opus";
+            File fromFile = new File(sourceFilePath);
+
+            if (fromFile.exists())
+            {
+                String pathToTrash = botConfig.getStoragePath() + botConfig.getVoicesPath() + File.separator + "trash" + File.separator + userId + File.separator;
+                Files.createDirectories(Paths.get(pathToTrash));
+                String targetFilePath = pathToTrash + fileInfo.getRecordingTimestamp() + "_" + fileInfo.getDuration() + "_" + fileInfo.getFileId() + ".opus";
+                System.out.println("targetFilePath: " + targetFilePath);
+                fileUtils.moveFileAbsolute(sourceFilePath, targetFilePath);
+            }
         }
     }
 

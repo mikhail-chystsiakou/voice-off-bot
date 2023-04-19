@@ -7,6 +7,7 @@ import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.Queries;
+import org.example.ffmpeg.FileInfo;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
 import org.example.ffmpeg.FFMPEG;
@@ -319,6 +320,20 @@ public class UserService
     public int deleteUserFromDelayNotification(Long userId)
     {
         return jdbcTemplate.update(Queries.DELETE_USER_FROM_DELAY_NOTIFICATIONS.getValue(), userId);
+    }
+
+    public FileInfo getFileIdByUserAndMessageId(Long userId, Integer messageId)
+    {
+        return jdbcTemplate.query(
+            GET_FILE_ID_BY_USER_AND_MESSAGE_ID.getValue(),
+            (rs, rn) -> {
+                String fileId = rs.getString("file_id");
+                int duration = Integer.parseInt(rs.getString("duration"));
+                long recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
+                return new FileInfo(userId, fileId, duration, recordingTimestamp);
+            },
+            userId,
+            messageId).stream().findFirst().orElse(null);
     }
 
     @Data

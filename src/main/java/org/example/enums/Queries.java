@@ -65,7 +65,10 @@ public enum Queries
             "      and ua.recording_timestamp >= ur.last_pull_timestamp\n" +
             "    group by ua.user_id\n" +
             "    limit 1) r\n" +
-            "where ua.message_id = r.message_id");
+            "where ua.message_id = r.message_id"),
+    GET_FILE_ID_BY_USER_AND_MESSAGE_ID("select file_id, duration, recording_timestamp from user_audios where user_id = ? and message_id = ?");
+
+
     String value;
 
     Queries(String value){
