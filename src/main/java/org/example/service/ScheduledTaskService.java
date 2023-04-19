@@ -26,22 +26,6 @@ public class ScheduledTaskService
     @Lazy
     ExecuteFunction executeFunction;
 
-    @Scheduled(fixedRate = 1, timeUnit = TimeUnit.HOURS)
-    public void checkUserDelayNotifications(){
-        List<Long> notifications = userService.getDelayNotifications();
-        notifications.forEach(chatId -> {
-            try
-            {
-                executeFunction.execute(new SendMessage(chatId.toString(), "You have new recordings."));
-            }
-            catch (TelegramApiException e)
-            {
-                e.printStackTrace();
-            }
-        });
-        logger.info("Scheduler: " + notifications);
-    }
-
     @Scheduled(fixedRate = 15, timeUnit = TimeUnit.MINUTES)
     public void checkUserInstantNotifications(){
         List<Long> notifications = userService.getDelayNotifications();
