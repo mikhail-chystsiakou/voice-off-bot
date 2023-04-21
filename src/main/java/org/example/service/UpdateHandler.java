@@ -1080,7 +1080,7 @@ public class UpdateHandler {
         }
         else if (stage == 2)
         {
-            sendVideo.setCaption("*Record* a voice message to share your thoughts with subscribers. " +
+            sendVideo.setCaption("*Record* a voice message to share your thoughts with subscribers." +
                                      "\n - Don't worry if you don't succeed. You can *remove* record by clicking the button 'Remove this recording'." +
                                      "\n - You can record voice messages whenever you want. Your subscribers will get all of them *in one file*." +
                                      "\n - You can edit your voice message to *add description*.");
@@ -1092,7 +1092,7 @@ public class UpdateHandler {
         }
         else if (stage == 3)
         {
-            sendVideo.setCaption("*Pull* voices of your friends by clicking Pull \uD83E\uDEF4.");
+            sendVideo.setCaption("*Pull* voices of your friends.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired3.mp4")));
             sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
             sendVideo.setParseMode("Markdown");
