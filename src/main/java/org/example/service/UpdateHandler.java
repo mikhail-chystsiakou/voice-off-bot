@@ -743,7 +743,7 @@ public class UpdateHandler {
         } else if (newState && replyModeFolloweeId != null) {
             sm.setText("Reply Mode enabled. All voice messages will be sent only to " + followeeName);
         } else {
-            sm.setText(prefix + "Reply Mode disabled");
+            sm.setText(prefix + "Reply Mode disabled. Your replies will be sent to " + followeeName);
         }
         sm.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(sm);
