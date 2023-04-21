@@ -159,17 +159,13 @@ public class UpdateHandler {
         );
         sendDelayNotifications(message.getFrom());
         sendInstantNotifications(message.getFrom());
-        //sendNotificationsToFollowers(message.getFrom());
     }
 
     private void sendInstantNotifications(User user)
     {
         userService.getUsersForInstantNotifications(user.getId()).forEach(userId -> {
             LocalTime localTime = LocalTime.now();
-
-            LocalTime estimatedTime = localTime.plusMinutes(15);
-
-            userService.addUserNotification(userId, estimatedTime);
+            userService.addUserNotification(userId, localTime);
         });
     }
 

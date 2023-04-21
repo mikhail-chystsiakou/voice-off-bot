@@ -26,7 +26,7 @@ public class ScheduledTaskService
     @Lazy
     ExecuteFunction executeFunction;
 
-    @Scheduled(fixedRate = 15, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void checkUserInstantNotifications(){
         List<Long> notifications = userService.getDelayNotifications();
         notifications.forEach(chatId -> {
@@ -39,6 +39,7 @@ public class ScheduledTaskService
                 e.printStackTrace();
             }
         });
+        userService.deleteNotifications();
         logger.info("Scheduler: " + notifications);
     }
 }
