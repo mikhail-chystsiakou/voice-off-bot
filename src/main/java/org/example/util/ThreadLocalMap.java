@@ -10,6 +10,8 @@ public class ThreadLocalMap {
 
     public static final String VALUE_TRUE = "TRUE";
     public static final String KEY_USER_INFO = "KEY_USER_INFO";
+    public static final String KEY_ORIG_MESSAGE_IDS = "KEY_ORIG_MESSAGE_IDS";
+    public static final String KEY_FOLLOWEE_ID = "KEY_FOLLOWEE_ID";
 
     public ThreadLocalMap() {
         tmpFiles = new ConcurrentHashMap<>();

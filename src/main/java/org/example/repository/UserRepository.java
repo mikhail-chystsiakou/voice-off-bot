@@ -25,10 +25,21 @@ public class UserRepository {
                         int timezone = rs.getInt("time_zone");
                         boolean feedbackModeAllowed = rs.getBoolean("feedback_mode_allowed");
                         boolean feedbackModeEnabled = rs.getBoolean("feedback_mode_enabled");
+                        Long replyModeFolloweeId = rs.getLong("reply_mode_followee_id");
+                        if (replyModeFolloweeId == 0) {
+                            replyModeFolloweeId = null;
+                        }
+                        Integer replyModeMessageId = rs.getInt("reply_mode_message_id");
+                        if (replyModeMessageId == 0) {
+                            replyModeMessageId = null;
+                        }
+                        System.out.println("replyModeFolloweeId: " + replyModeFolloweeId);
+                        System.out.println("replyModeMessageId: " + replyModeMessageId);
                         return new UserInfo(userId, followeeChatId,
                                 username, firstName, lastName,
                                 timezone,
-                                feedbackModeAllowed, feedbackModeEnabled);
+                                feedbackModeAllowed, feedbackModeEnabled,
+                                replyModeFolloweeId, replyModeMessageId);
                     },
                     userId
             );

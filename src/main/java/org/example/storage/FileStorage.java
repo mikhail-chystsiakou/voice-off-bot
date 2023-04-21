@@ -1,6 +1,7 @@
 package org.example.storage;
 
 import org.example.config.BotConfig;
+import org.example.enums.MessageType;
 import org.example.enums.Queries;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
@@ -30,10 +31,10 @@ import java.util.TimeZone;
 public class FileStorage {
     private static final Logger logger = LoggerFactory.getLogger(FileStorage.class);
 
-    private final static String FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga";
+    private static final String FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.opus";
+    public static final String DEFAULT_AUDIO_EXTENSION = "opus";
 
     public static final String TYPE_FEEDBACK = "TYPE_FEEDBACK";
-    public static final String TYPE_DATA = "TYPE_DATA";
 
     @Autowired
     FileUtils fileUtils;
@@ -48,12 +49,23 @@ public class FileStorage {
     @Autowired
     ExecuteFunction execute;
 
-    public void storeFile(long userId, String fileId, int duration, Integer messageId, String extension) {
-        storeFile(userId, fileId, duration, messageId, extension, TYPE_DATA);
+    public void storeFile(long userId, String fileId, int duration, Integer messageId, Long replyModeFolloweeId, Integer replyModeMessageId) {
+        MessageType messageType = MessageType.DATA;
+        if (replyModeFolloweeId != null) {
+            messageType = MessageType.REPLY;
+        }
+        storeFile(userId, fileId, duration, messageId, DEFAULT_AUDIO_EXTENSION, messageType, replyModeFolloweeId, replyModeMessageId);
     }
 
-    public void storeFile(long userId, String fileId, int duration, Integer messageId, String extension, String type) {
+    public void storeFile(long userId, String fileId, int duration, Integer messageId, String extension) {
+        storeFile(userId, fileId, duration, messageId, extension, MessageType.DATA, null, null);
+    }
+
+    public void storeFile(
+            long userId, String fileId, int duration,
+            Integer messageId, String extension, MessageType messageType, Long replyModeFolloweeId, Integer replyModeMessageId) {
         logger.debug("Storing file {} of type {} for user: {}", fileId, extension, userId);
+        System.out.println("Storing file {} of type {} for user: {}" + fileId + extension + userId + messageType);
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
 
@@ -70,8 +82,9 @@ public class FileStorage {
 //            throw new RuntimeException(e);
         }
 
-        String dir = getFileDir(userId, recordingTimestamp, type);
-        String destFilename = dir + createFileName(recordingTimestamp, duration, fileId, extension);
+        String dir = getFileDir(userId, recordingTimestamp, messageType);
+        String destFilename = getFullFilePath(
+                userId, recordingTimestamp, duration, fileId, extension, messageType, messageId, replyModeFolloweeId);
         System.out.println("Copying from " + sourceFilename + " to " + destFilename);
         long fileSize = 0;
         try {
@@ -84,16 +97,20 @@ public class FileStorage {
         }
 
         jdbcTemplate.update(Queries.ADD_AUDIO.getValue(),
-                userId, fileId, duration, sqlTimestamp, messageId, fileSize
+                userId, fileId, duration, sqlTimestamp, messageId, fileSize, replyModeMessageId
         );
         System.out.println("File " + fileId + " stored to db");
     }
 
-    private String getFileDir(long userId, long recordingTimestamp, String type) {
-        String pathPrefix = botConfig.getStoragePath() + botConfig.getVoicesPath();
-        if (TYPE_FEEDBACK.equals(type)) {
-            pathPrefix = botConfig.getStoragePath() + botConfig.getFeedbacksPath();
-        }
+    public String getFullFilePath(long userId, long recordingTimestamp, int duration, String fileId,
+                                  String extension, MessageType messageType, Integer messageId, Long replyModeFolloweeId) {
+        String dir = getFileDir(userId, recordingTimestamp, messageType);
+        String destFilename = dir + createFileName(recordingTimestamp, duration, fileId, extension, messageId, replyModeFolloweeId);
+        return destFilename;
+    }
+
+    public String getFileDir(long userId, long recordingTimestamp, MessageType messageType) {
+        String pathPrefix = botConfig.getStoragePath() + messageType.getDir();
         if (!pathPrefix.endsWith(File.separator)) {
             pathPrefix += File.separator;
         }
@@ -105,11 +122,18 @@ public class FileStorage {
         return pathPrefix + timePrefix;
     }
 
-    private String createFileName(long timestamp, int duration, String fileId, String extension) {
+    public String createFileName(long timestamp, int duration, String fileId,
+                                  String extension, Integer messageId, Long replyModeFolloweeId) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd_HH_mm_ss_SSS");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String timePrefix = sdf.format(new Date(timestamp));
-        return timePrefix + "_" + duration + "_" + fileId + "." + extension;
+        return
+                timePrefix
+                    + "_" + duration
+                    + "_" + messageId
+                    + ((replyModeFolloweeId == null) ? "_0" : ("_" + replyModeFolloweeId))
+                    + "_" + fileId
+                    + "." + extension;
     }
 
 }

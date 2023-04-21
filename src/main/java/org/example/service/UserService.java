@@ -6,6 +6,7 @@ import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
+import org.example.enums.MessageType;
 import org.example.enums.Queries;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
@@ -40,7 +41,7 @@ import java.util.stream.Collectors;
 
 import static org.example.Constants.Messages.OK_RECORDED;
 import static org.example.enums.Queries.*;
-import static org.example.util.ThreadLocalMap.KEY_USER_INFO;
+import static org.example.util.ThreadLocalMap.*;
 
 @Component
 public class UserService
@@ -87,6 +88,14 @@ public class UserService
         return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId, messageId);
     }
 
+//    public int storeReply() {
+//        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId, messageId);
+//    }
+
+    public Long getFolloweeByPullMessage(Integer pullMessageId){
+        return jdbcTemplate.queryForObject(Queries.GET_FOLLOWEE_ID_BY_PULL_MESSAGE_ID.getValue(), new Object[]{pullMessageId}, Long.class);
+    }
+
     public Long getUserById(Long userId){
         return jdbcTemplate.query(Queries.GET_USER_BY_ID.getValue(), new Object[]{userId}, new UserMapper())
             .stream().findFirst().map(UserDAO::getId).orElse(null);
@@ -105,6 +114,11 @@ public class UserService
         return  jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
     }
 
+
+    public int storePullMessage(Long followeeId, Integer pullMessageId, String origMessageIds) {
+        return jdbcTemplate.update(ADD_PULL_MESSAGE_ID.getValue(), followeeId, pullMessageId, origMessageIds);
+
+    }
 
     public Long getChatIdByUserId(Long contactId)
     {
@@ -152,6 +166,14 @@ public class UserService
 
     public void storeFeedback(long userId, long messageId, String text, String fileId) {
         jdbcTemplate.update(STORE_FEEDBACK.getValue(), userId, messageId, text, fileId);
+    }
+
+    public boolean isSubscriber(Long subscriberId, Long followeeId) {
+        System.out.println("Checking if subscriberId " + subscriberId + " is subscribed to " + followeeId);
+        return !jdbcTemplate.queryForList(
+                FollowQueries.IS_SUBSCRIBER.getValue(),
+                new Object[]{subscriberId, followeeId},
+                String.class).isEmpty();
     }
 
     public SendMessage getSubscriptions(Long userId, Long chatId) {
@@ -268,6 +290,13 @@ public class UserService
         return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ALLOWED_BY_USER.getValue(), isFeedbackAllowed, userId);
     }
 
+    public int updateReplyEnabled(long userId, Long replyModeFolloweeId, Integer replyMessageId)
+    {
+        System.out.println("updating reply mode for user " + userId
+                + ", replyModeFolloweeId: " + replyModeFolloweeId + ", replyMessageId: " + replyMessageId);
+        return jdbcTemplate.update(Queries.UPDATE_REPLY_ENABLED_BY_USER.getValue(), replyModeFolloweeId, replyMessageId, userId);
+    }
+
     public int updateFeedbackEnabled(long userId, boolean isFeedbackEnabled)
     {
         return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ENABLED_BY_USER.getValue(), isFeedbackEnabled, userId);
@@ -337,50 +366,100 @@ public class UserService
     }
 
     public boolean isDataAvailable(Long userId) {
-        return jdbcTemplate.queryForStream(
-                Queries.GET_LAST_PULL_TIME.getValue(),
+        boolean repliesPresent = jdbcTemplate.queryForStream(
+                Queries.GET_REPLY_LAST_PULL_TIME.getValue(),
                 (rs, rn) -> {
                     FolloweePullTimestamp obj = new FolloweePullTimestamp();
-                    obj.followeeId = rs.getLong("followee_id");
+                    obj.followeeId = rs.getLong("user_id");
                     obj.lastPullTimestamp = rs.getTimestamp("last_pull_timestamp").getTime();
 
                     return obj;
                 },
-                Timestamp.from(Instant.now()), userId
+                userId
         ).findAny().isPresent();
+
+        if (repliesPresent) return true;
+
+        boolean voicesPresent = jdbcTemplate.queryForStream(
+                Queries.GET_LAST_PULL_TIME.getValue(),
+                (rs, rn) -> {
+                    FolloweePullTimestamp obj = new FolloweePullTimestamp();
+                    obj.followeeId = rs.getLong("user_id");
+                    obj.lastPullTimestamp = rs.getTimestamp("last_pull_timestamp").getTime();
+
+                    return obj;
+                },
+                userId
+        ).findAny().isPresent();
+
+        return voicesPresent;
     }
 
     public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
     {
+        List<SendAudio> replies = pullAudios(true, userId, chatId);
+        if (!replies.isEmpty()) return replies;
+        return pullAudios(false, userId, chatId);
+    }
+
+    private List<SendAudio> pullAudios(boolean pullReplies, Long userId, Long chatId){
         long nextPullTimestamp = System.currentTimeMillis();
+        Queries query = Queries.GET_LAST_PULL_TIME;
+        if (pullReplies) {
+            query = Queries.GET_REPLY_LAST_PULL_TIME;
+            System.out.println("Working with reply");
+        } else {
+            System.out.println("Working with data");
+        }
         // list of followees with their last pull timestamps
         // only followees with available recordings selected
         List<FolloweePullTimestamp> followeesPullTimestamps = jdbcTemplate.queryForStream(
-                Queries.GET_LAST_PULL_TIME.getValue(),
+                query.getValue(),
                 (rs, rn) -> {
                     FolloweePullTimestamp obj = new FolloweePullTimestamp();
-                    obj.followeeId = rs.getLong("followee_id");
+                    obj.followeeId = rs.getLong("user_id");
                     obj.lastPullTimestamp = rs.getTimestamp("last_pull_timestamp").getTime();
 
                     return obj;
                 },
-                new Timestamp(nextPullTimestamp), userId
+                userId
         ).collect(Collectors.toList());
 
         List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
+        Long pullMessageId = null;
+        Long followeeId = null;
+        String origMessageIds = null;
+
         for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
             System.out.println(fpt);
             statsService.setFolloweeId(fpt.followeeId);
             statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
 
             // collect recordings
-            FFMPEGResult localFile = ffmpeg.produceFiles(fpt.followeeId, fpt.lastPullTimestamp, nextPullTimestamp);
+            MessageType type = MessageType.DATA;
+            if (pullReplies) {
+                type = MessageType.REPLY;
+            }
+            FFMPEGResult localFile = ffmpeg.produceFiles(type,
+                    fpt.followeeId,
+                    fpt.lastPullTimestamp, nextPullTimestamp,
+                    userId
+            );
             long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
             statsService.setPullTimestamp(lastFileRecordingTimestamp);
             System.out.println("Last recording timestamp: " + new Timestamp(lastFileRecordingTimestamp));
-            jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
-                new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
-            );
+            if (pullReplies) {
+                System.out.println("setting timestamp for replies on " + fpt.followeeId + "-" + userId);
+                jdbcTemplate.update(REMOVE_REPLY_PULL_TIMESTAMP.getValue(), userId, fpt.followeeId);
+                jdbcTemplate.update(ADD_REPLY_PULL_TIMESTAMP.getValue(),
+                        new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
+                );
+            } else {
+                jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
+                        new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
+                );
+                System.out.println("setting timestamp for data on " + fpt.followeeId + "-" + userId);
+            }
 
             SendAudio sendAudio = new SendAudio();
             sendAudio.setParseMode("Markdown");
@@ -434,9 +513,14 @@ public class UserService
             in.setMedia(filePath.toFile(), localFile.getAudioTitle());
             sendAudio.setAudio(in);
             int duration = 0;
+            StringJoiner sj = new StringJoiner(",");
             for (VoicePart vp : voiceParts) {
                 duration += vp.duration;
+                sj.add(String.valueOf(vp.getMessageId()));
             }
+            origMessageIds = sj.toString();
+            tlm.put(KEY_ORIG_MESSAGE_IDS, origMessageIds);
+            tlm.put(KEY_FOLLOWEE_ID, fpt.followeeId);
             sendAudio.setDuration(duration);
             sendAudio.setTitle(localFile.getAudioTitle());
             sendAudio.setChatId(chatId);
@@ -451,6 +535,7 @@ public class UserService
             System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + fpt.followeeId);
             voices.add(sendAudio);
         }
+
         return voices;
     }
 

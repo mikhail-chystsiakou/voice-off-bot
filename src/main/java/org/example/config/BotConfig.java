@@ -37,6 +37,9 @@ public class BotConfig {
     @Value("${bot.storage.path.tmp}")
     String tmpPath;
 
+    @Value("${bot.storage.path.replies}")
+    String repliesPath;
+
     @Value("${bot.vfs}")
     String vfsHost;
 

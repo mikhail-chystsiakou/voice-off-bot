@@ -13,6 +13,7 @@ public enum FollowQueries {
                           "\t\telse u.first_name\n" +
                           "\tend uname from users u, user_subscriptions us\n" +
             "where u.user_id = us.followee_id and us.user_id = ?"),
+    IS_SUBSCRIBER("select 1 from user_subscriptions where user_id = ? and followee_id = ?"),
     UNSUBSCRIBE("delete from user_subscriptions where user_id = ? and followee_id = ?");
 
     String value;

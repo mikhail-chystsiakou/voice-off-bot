@@ -60,6 +60,10 @@ public class ButtonsService
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
             logger.warn("UserInfo is null!", new RuntimeException());
+        } else if (userInfo.getReplyModeFolloweeId() != null) {
+            rows.clear();
+            buttonForManagingSubscriptions.setText(ButtonCommands.DISABLE_REPLY_MODE.getDescription());
+            rows.add(new KeyboardRow(Arrays.asList(buttonForManagingSubscriptions)));
         } else if (userInfo.isFeedbackModeAllowed()){
             KeyboardButton feedbackButton = new KeyboardButton();
             if (userInfo.isFeedbackModeEnabled()) {
@@ -196,7 +200,7 @@ public class ButtonsService
 
         keyboardMarkup.setKeyboard(Arrays.asList(
                 new KeyboardRow(Arrays.asList(buttonForSubscription)),
-                new KeyboardRow(Arrays.asList(buttonForUnsubscribeUser, buttonForUnfollowUser)),
+                new KeyboardRow(Arrays.asList(buttonForUnfollowUser, buttonForUnsubscribeUser)),
                  new KeyboardRow(Arrays.asList(followers, following)),
                  new KeyboardRow(Arrays.asList(buttonReturnToPreviousMenu))));
         keyboardMarkup.setResizeKeyboard(true);

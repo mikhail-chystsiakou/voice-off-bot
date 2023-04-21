@@ -2,6 +2,8 @@ package org.example.ffmpeg;
 
 import org.example.config.BotConfig;
 import org.example.config.Config;
+import org.example.enums.MessageType;
+import org.example.storage.FileStorage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -38,14 +40,21 @@ public class FFMPEG {
     BotConfig botConfig;
 
     @Autowired
+    FileStorage fileStorage;
+
+    @Autowired
     public FFMPEG(Config config) {
         String osName = System.getProperty("os.name");
     }
 
-    public FFMPEGResult produceFiles(long userId, long from, long to) {
+    public FFMPEGResult produceFiles(MessageType type, long userId, long from, long to, Long replyFolloweeId) {
+        System.out.println("FFMPEG called with params: " + type + ", " + userId + ", " + from + ", " + to + ", " + replyFolloweeId);
         String tempStoragePath = botConfig.getStoragePath() + botConfig.getTmpPath() + File.separator;
 
         VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, to);
+        if (MessageType.REPLY.equals(type)) {
+            virtualFileInfo.setReplyFolloweeId(replyFolloweeId);
+        }
         System.out.println("VirtualFileInfo: " + virtualFileInfo);
 
         String outputFileSuffix = tempStoragePath + System.currentTimeMillis() + "_" + new Random().nextInt(9_999_999);
@@ -54,12 +63,12 @@ public class FFMPEG {
         long lastFileRecordingTimestamp = 0;
 
         try {
-            lastFileRecordingTimestamp = createListFile(listFile, loadFileInfo(virtualFileInfo));
+            lastFileRecordingTimestamp = createListFile(type, listFile, loadFileInfo(virtualFileInfo));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         String audioAuthor = getAudioAuthor(virtualFileInfo);
-        String audioTitle = getAudioTitle(virtualFileInfo);
+        String audioTitle = getAudioTitle(type, virtualFileInfo);
         String command = MessageFormat.format(COMMAND_PATTERN, listFile, audioAuthor, audioTitle, outputFile);
         System.out.println(command);
         try {
@@ -91,12 +100,15 @@ public class FFMPEG {
         return audioAuthor;
     }
 
-    private String getAudioTitle(VirtualFileInfo vfi) {
+    private String getAudioTitle(MessageType type, VirtualFileInfo vfi) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String from = sdf.format(new Date(vfi.getDateFrom()));
         String to = sdf.format(new Date(vfi.getDateFrom()));
         String title = "Diary from " + from;
+        if (MessageType.REPLY.equals(type)) {
+            title = "Reply from " + from;
+        }
         if (!to.equals(from)) title += "to " + to;
 
         return title;
@@ -142,21 +154,34 @@ public class FFMPEG {
         System.out.println("ffmpeg finished with result " + res);
     }
 
-    private long createListFile(String listFilePath, List<FileInfo> virtualFiles) throws IOException {
+    private long createListFile(MessageType type, String listFilePath, List<FileInfo> virtualFiles) throws IOException {
         File listFile = new File(listFilePath);
         System.out.println(listFilePath);
         listFile.createNewFile();
         long lastFileRecordingTimestamp = 0;
         try (Writer bw = new BufferedWriter(new FileWriter(listFile))) {
             for (FileInfo file : virtualFiles) {
-                Date recordingTimestamp = new Date(file.getRecordingTimestamp());
-                SimpleDateFormat sdf = new SimpleDateFormat(FILE_DATE_PATTERN);
-                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-                String recordingTimestampString = sdf.format(recordingTimestamp);
+//                Date recordingTimestamp = new Date(file.getRecordingTimestamp());
+//                SimpleDateFormat sdf = new SimpleDateFormat(FILE_DATE_PATTERN);
+//                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+//                String recordingTimestampString = sdf.format(recordingTimestamp);
 
-                String filePath = botConfig.getStoragePath() + botConfig.getVoicesPath() + File.separator + file.getUserId() + File.separator
-                        + recordingTimestampString + "_" + file.getDuration() + "_" + file.getFileId() + ".opus";
+//                String filePrefix = botConfig.getStoragePath() + botConfig.getVoicesPath() + File.separator;
+//                + file.getUserId() + File.separator
+//                        + recordingTimestampString + "_" + file.getDuration() + "_" + file.getFileId() + ".opus";
+                // todo
+                String filePath = fileStorage.getFullFilePath(
+                    file.getUserId(),
+                    file.getRecordingTimestamp(),
+                    file.getDuration(),
+                    file.getFileId(),
+                    FileStorage.DEFAULT_AUDIO_EXTENSION,
+                    type,
+                    file.getMessageId(),
+                    file.getReplyModeFolloweeId()
+                );
                 String fileString = "file '" + filePath + "'\n";
+                System.out.println("Will concat file: " + filePath);
                 bw.write(fileString);
                 lastFileRecordingTimestamp = file.getRecordingTimestamp();
             }
@@ -167,15 +192,44 @@ public class FFMPEG {
 
 
     private List<FileInfo> loadFileInfo(VirtualFileInfo virtualFileInfo) {
-        String query = "select  " +
-                "ua.file_id, ua.duration, ua.recording_timestamp " +
-                "from user_audios ua " +
-                "where ua.user_id = ? " +
-                "and ua.recording_timestamp > ? and ua.recording_timestamp <= ? " +
+        String dataQuery = "select\n" +
+                "    ua.file_id, ua.duration, ua.recording_timestamp, ua.message_id, null followee_id\n" +
+                "from user_audios ua\n" +
+                "where ua.user_id = ?\n" +
+                "  and ua.recording_timestamp > ? and ua.recording_timestamp <= ?\n" +
+                "  and ua.reply_to_message_id is null\n" +
                 "order by ua.recording_timestamp";
+
+        String replyQuery = "select\n" +
+                "    ua.file_id, ua.duration, ua.recording_timestamp, ua.message_id, pm.followee_id\n" +
+                "from user_audios ua, pull_messages pm\n" +
+                "where ua.user_id = ?\n" +
+                "  and ua.recording_timestamp > ? and ua.recording_timestamp <= ?\n" +
+                "  and pm.pull_message_id = ua.reply_to_message_id\n" +
+                "  and pm.followee_id = ?\n" +
+                "order by ua.recording_timestamp";
+
+        String query = dataQuery;
+        Object[] args = new Object[] {virtualFileInfo.getUserId(),
+                new Timestamp(virtualFileInfo.getDateFrom()),
+                new Timestamp(virtualFileInfo.getDateTo())
+        };
+
+        if (virtualFileInfo.getReplyFolloweeId() != null) {
+            query = replyQuery;
+            args = new Object[] {
+                    virtualFileInfo.getUserId(),
+                    new Timestamp(virtualFileInfo.getDateFrom()),
+                    new Timestamp(virtualFileInfo.getDateTo()),
+                    virtualFileInfo.getReplyFolloweeId()
+            };
+        }
+
         System.out.println(
                 query + "; user_id: " + virtualFileInfo.getUserId()
-                        + ", from: " + virtualFileInfo.getDateFrom() + ", to: " + virtualFileInfo.getDateTo());
+                        + ", from: " + virtualFileInfo.getDateFrom() + ", to: " + virtualFileInfo.getDateTo()
+                        + ", followee_id (for reply): " + virtualFileInfo.getReplyFolloweeId());
+
 
         List<FileInfo> parts = jdbcTemplate.queryForStream(
                 query,
@@ -184,13 +238,14 @@ public class FFMPEG {
                     String fileId = rs.getString("file_id");
                     int duration = Integer.parseInt(rs.getString("duration"));
                     long recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
-                    FileInfo fi = new FileInfo(userId, fileId, duration, recordingTimestamp);
+                    int messageId = rs.getInt("message_id");
+                    Long replyToFolloweeId = rs.getLong("followee_id");
+                    if (replyToFolloweeId == 0) replyToFolloweeId = null;
+                    FileInfo fi = new FileInfo(userId, fileId, duration, recordingTimestamp, messageId, replyToFolloweeId);
                     System.out.println("found file info: " + fi);
                     return fi;
                 },
-                virtualFileInfo.getUserId(),
-                new Timestamp(virtualFileInfo.getDateFrom()),
-                new Timestamp(virtualFileInfo.getDateTo())
+                args
         ).collect(Collectors.toList());
         List<FileInfo> result = new ArrayList<>();
         System.out.println("Total items found : " + Arrays.toString(parts.toArray()));

@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.Constants;
 import org.example.config.BotConfig;
+import org.example.enums.MessageType;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
 import org.example.storage.FileStorage;
@@ -37,6 +38,8 @@ import java.util.stream.Collectors;
 import static org.example.Constants.Messages.*;
 import static org.example.Constants.Settings.*;
 import static org.example.enums.Queries.*;
+import static org.example.storage.FileStorage.DEFAULT_AUDIO_EXTENSION;
+import static org.example.util.ThreadLocalMap.*;
 
 @Component
 public class UpdateHandler {
@@ -106,15 +109,35 @@ public class UpdateHandler {
     }
 
     public void handleVoiceMessage(Message message) throws TelegramApiException {
+        Long userId = message.getFrom().getId();
+        Integer replyModeMessageId = null;
+        Long replyModeFolloweeId = null;
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        if (message.getReplyToMessage() != null) {
+            replyModeMessageId = message.getReplyToMessage().getMessageId();
+            replyModeFolloweeId = userService.getFolloweeByPullMessage(replyModeMessageId);
+            userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
+            userInfo.setReplyModeMessageId(replyModeMessageId);
+            userService.updateReplyEnabled(userId, replyModeFolloweeId, replyModeMessageId);
+        } else if (userInfo != null && userInfo.getReplyModeMessageId() != null) {
+            replyModeMessageId = userInfo.getReplyModeMessageId();
+            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
+        }
 
+        if (replyModeMessageId != null) {
+            enableReplyMode(message);
+        }
         Voice voice = message.getVoice();
+
         fileStorage.storeFile(
                 message.getFrom().getId(),
                 voice.getFileId(),
                 voice.getDuration(),
                 message.getMessageId(),
-                "opus"
+                replyModeFolloweeId,
+                replyModeMessageId
         );
+
         if (message.getCaption() != null) {
             storeMessageDescription(message, false);
         }
@@ -431,7 +454,8 @@ public class UpdateHandler {
                 try
                 {
                     statsService.pullEndBeforeUpload();
-                    sendAudioFunction.execute(record);
+                    Message pullMessage = sendAudioFunction.execute(record);
+                    storePullMessage(pullMessage);
                     userService.cleanup(record);
                 }
                 catch (TelegramApiException e)
@@ -447,6 +471,12 @@ public class UpdateHandler {
         statsService.pullEnd();
         statsService.storePullStatistics();
         pullProcessingSet.finishProcessingForUser(userId);
+    }
+
+    private void storePullMessage(Message pullMessage) {
+        String origMessageIds = tlm.get(KEY_ORIG_MESSAGE_IDS);
+        Long followeeId = tlm.get(KEY_FOLLOWEE_ID);
+        userService.storePullMessage(followeeId, pullMessage.getMessageId(), origMessageIds);
     }
 
     private void changeUserName(User user)
@@ -491,26 +521,6 @@ public class UpdateHandler {
         executeFunction.execute(userService.getSubscriptions(message.getFrom().getId(), message.getChatId()));
     }
 
-    public void processReply(Message message) throws TelegramApiException {
-        Message repliedTo = message.getReplyToMessage();
-        if (!message.hasVoice()) {
-            executeFunction.execute(
-                    new SendMessage(message.getChatId().toString(), "Only voice replies supported")
-            );
-            return;
-        }
-//        Voice voice = message.getVoice();
-//
-//        fileStorage.storeFile(
-//                message.getFrom().getId(),
-//                voice.getFileId(),
-//                voice.getDuration(),
-//                message.getMessageId(),
-//                "opus"
-//        );
-
-    }
-
     public void storeFeedback(Message message) throws TelegramApiException {
         String feedbackText = null;
         if (message.hasText()) {
@@ -524,7 +534,7 @@ public class UpdateHandler {
             Voice voice = message.getVoice();
             fileId = voice.getFileId();
             duration = voice.getDuration();
-            extension = "opus";
+            extension = DEFAULT_AUDIO_EXTENSION;
         } else if (message.hasAudio()) {
             Audio audio = message.getAudio();
             fileId = audio.getFileId();
@@ -564,7 +574,7 @@ public class UpdateHandler {
 
         if (fileId != null) {
             fileStorage.storeFile(message.getFrom().getId(), fileId, duration,
-                    message.getMessageId(), extension, FileStorage.TYPE_FEEDBACK);
+                    message.getMessageId(), extension, MessageType.FEEDBACK, null, null);
         }
         userService.storeFeedback(message.getFrom().getId(), message.getMessageId(), feedbackText, fileId);
         executeFunction.execute(new SendMessage(message.getChatId().toString(), "Thanks, feedback recorded"));
@@ -598,6 +608,10 @@ public class UpdateHandler {
         }
         result.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(result);
+    }
+
+    public void enterReplyMode(Message message) {
+
     }
 
     public void removeSubscriber(Message message) throws TelegramApiException
@@ -659,6 +673,66 @@ public class UpdateHandler {
         sendMessage.setText(CHOOSE_OPTION_FROM_MENU);
         sendMessage.setReplyMarkup(buttonsService.getManageSubscriptionsMenu());
         executeFunction.execute(sendMessage);
+    }
+
+    public void enableReplyMode(Message message) throws TelegramApiException {
+        long userId = message.getFrom().getId();
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        boolean isSubscriber =  userService.isSubscriber(userId, userInfo.getReplyModeFolloweeId());
+        if (!isSubscriber) {
+            disableReplyMode(message, "You are not subscriber of " + userInfo.getUserNameWithAt() + ". ");
+        } else {
+            changeReplyMode(message, true, "");
+        }
+
+    }
+
+
+    public void disableReplyMode(Message message) throws TelegramApiException {
+        changeReplyMode(message, false, "");
+    }
+
+    public void disableReplyMode(Message message, String prefix) throws TelegramApiException {
+        changeReplyMode(message, false, prefix);
+    }
+
+    public void changeReplyMode(Message message, boolean newState, String prefix) throws TelegramApiException {
+        long userId = message.getFrom().getId();
+        Long replyModeFolloweeId = null;
+        Integer replyModeMessageId = null;
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        boolean wasEnabled = false;
+        if (newState && message.getReplyToMessage() != null) {
+            replyModeMessageId = message.getReplyToMessage().getMessageId();
+            replyModeFolloweeId = userService.getFolloweeByPullMessage(replyModeMessageId);
+        } else if (newState && userInfo != null) {
+            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
+            replyModeMessageId = userInfo.getReplyModeMessageId();
+            wasEnabled = (replyModeMessageId != null);
+            System.out.println("userInfo is not null " + userInfo);
+        }
+        System.out.println("replyModeFolloweeId: " + replyModeFolloweeId + ", replyMessageId: " + replyModeMessageId);
+        userService.updateReplyEnabled(userId, replyModeFolloweeId, replyModeMessageId);
+
+        String followeeName = "@username";
+        if (userInfo == null) {
+            logger.warn("UserInfo is null", new RuntimeException());
+        } else {
+            userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
+            userInfo.setReplyModeMessageId(replyModeMessageId);
+            followeeName = userInfo.getUserNameWithAt();
+        }
+        SendMessage sm = new SendMessage();
+        sm.setChatId(message.getChatId());
+        if (newState && wasEnabled) {
+            sm.setText("Reply to " + followeeName + " recorded");
+        } else if (newState && replyModeFolloweeId != null) {
+            sm.setText("Reply Mode enabled. All voice messages will be sent only to " + followeeName);
+        } else {
+            sm.setText(prefix + "Reply Mode disabled");
+        }
+        sm.setReplyMarkup(buttonsService.getInitMenuButtons());
+        executeFunction.execute(sm);
     }
 
     public void enableFeedbackMode(Message message) throws TelegramApiException {
@@ -971,7 +1045,7 @@ public class UpdateHandler {
         }
         else if (stage == 3)
         {
-            sendVideo.setCaption("Click 'Pull' to *get updates* from your friends.");
+            sendVideo.setCaption("*Pull* voices of your friends by clicking Pull \uD83E\uDEF4.");
             sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired3.mp4")));
             sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
             sendVideo.setParseMode("Markdown");

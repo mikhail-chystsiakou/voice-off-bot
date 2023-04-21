@@ -14,6 +14,8 @@ public class UserInfo {
     int timezone;
     boolean feedbackModeAllowed;
     boolean feedbackModeEnabled;
+    Long replyModeFolloweeId;
+    Integer replyModeMessageId;
 
 
     public String getUserNameWithAt()

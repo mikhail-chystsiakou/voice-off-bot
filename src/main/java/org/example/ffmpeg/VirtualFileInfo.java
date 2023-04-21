@@ -19,6 +19,7 @@ public class VirtualFileInfo {
     private String authorUserName;
     private String authorFirstName;
     private String authorLastName;
+    private Long replyFolloweeId; // for reply
 
     public VirtualFileInfo(long userId, long dateFrom, long dateTo) {
         this.userId = userId;

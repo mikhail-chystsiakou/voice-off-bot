@@ -103,8 +103,6 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
             if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
-            } else if (message.getReplyToMessage() != null) {
-                updateHandler.processReply(message);
             } else if (message.hasVoice()){
                 if (userInfo.isFeedbackModeEnabled()) {
                     updateHandler.storeFeedback(message);
@@ -130,6 +128,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 else if (ButtonCommands.DISABLE_FEEDBACK_MODE.getCommand().equals(inputMessage)
                 || ButtonCommands.DISABLE_FEEDBACK_MODE.getDescription().startsWith(inputMessage)){
                     updateHandler.disableFeedbackMode(message);
+                }
+                else if (ButtonCommands.DISABLE_REPLY_MODE.getCommand().equals(inputMessage)
+                || ButtonCommands.DISABLE_REPLY_MODE.getDescription().startsWith(inputMessage)){
+                    updateHandler.disableReplyMode(message);
                 }
                 else if (inputMessage.startsWith(ButtonCommands.UNSUBSCRIBE.getCommand())) {
                     updateHandler.unsubscribeFrom(message);
@@ -176,6 +178,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 if ("3".equals(requestId))
                 {
                     updateHandler.removeSubscriber(message);
+                }
+                if ("4".equals(requestId))
+                {
+                    updateHandler.enterReplyMode(message);
                 }
             }
         }
