@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS user_audios
     recording_timestamp timestamp with time zone default current_timestamp,
     pull_count bigint default 0,
     ok_message_id bigint,
-    reply_to_user_id bigint,
+    reply_to_message_id bigint,
 
     constraint audios_pk primary key (user_id, file_order_number)
 );

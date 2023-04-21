@@ -13,6 +13,7 @@ public class ThreadLocalMap {
     public static final String KEY_ORIG_MESSAGE_IDS = "KEY_ORIG_MESSAGE_IDS";
     public static final String KEY_FOLLOWEE_ID = "KEY_FOLLOWEE_ID";
     public static final String KEY_REPLY_MESSAGE = "KEY_REPLY_MESSAGE";
+    public static final String KEY_REPLY_CONFIRM_TEXT = "KEY_REPLY_CONFIRM_TEXT";
 
     public ThreadLocalMap() {
         tmpFiles = new ConcurrentHashMap<>();

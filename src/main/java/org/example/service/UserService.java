@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -507,11 +508,9 @@ public class UserService
                         EditMessageText emt = new EditMessageText();
                         emt.setChatId(fpt.followeeId);
                         if (vp.getPullCount() == 1) {
-                            emt.setText(OK_RECORDED + ". Recording was pulled 1 time");
-
+                            emt.setText("Recording was pulled 1 time");
                         } else {
-
-                            emt.setText(OK_RECORDED + ". Recording was pulled " + vp.getPullCount() + " times");
+                            emt.setText("Recording was pulled " + vp.getPullCount() + " times");
                         }
                         emt.setMessageId(followeeOkMessageId);
                         emt.setReplyMarkup(buttonsService.getButtonForDeletingRecord((int)vp.messageId));

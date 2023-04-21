@@ -152,7 +152,13 @@ public class UpdateHandler {
         }
 
         SendMessage reply = new SendMessage();
-        reply.setText(OK_RECORDED + ". Nobody pulled this recording yet");
+
+        String replyConfirm = tlm.get(KEY_REPLY_CONFIRM_TEXT);
+        if (replyConfirm == null) {
+            reply.setText(OK_RECORDED + ". Nobody pulled this recording yet");
+        } else {
+            reply.setText(replyConfirm + ". Author did not pulled this reply yet");
+        }
         reply.setChatId(message.getChatId());
         reply.setReplyMarkup(buttonsService.getButtonForDeletingRecord(message.getMessageId()));
         Message replyMessage = executeFunction.execute(reply);
@@ -736,17 +742,26 @@ public class UpdateHandler {
             userInfo.setReplyModeMessageId(replyModeMessageId);
             followeeName = userInfo.getUserNameWithAt();
         }
-        SendMessage sm = new SendMessage();
-        sm.setChatId(message.getChatId());
+        String replyMessage = "";
+        boolean modeChanged = false;
         if (newState && wasEnabled) {
-            sm.setText("Reply to " + followeeName + " recorded");
+            replyMessage = "Reply to " + followeeName + " recorded";
         } else if (newState && replyModeFolloweeId != null) {
-            sm.setText("Reply Mode enabled. All voice messages will be sent only to " + followeeName);
+            replyMessage = "Reply Mode enabled. All voice messages will be sent only to " + followeeName;
+            modeChanged = true;
         } else {
-            sm.setText(prefix + "Reply Mode disabled. Your replies will be sent to " + followeeName);
+            replyMessage = prefix + "Reply Mode disabled. " + followeeName + " will get your replies on next pull";
+            modeChanged = true;
         }
-        sm.setReplyMarkup(buttonsService.getInitMenuButtons());
-        executeFunction.execute(sm);
+        if (modeChanged) {
+            SendMessage sm = new SendMessage();
+            sm.setChatId(message.getChatId());
+            sm.setText(replyMessage);
+            sm.setReplyMarkup(buttonsService.getInitMenuButtons());
+            executeFunction.execute(sm);
+        }
+        tlm.put(KEY_REPLY_CONFIRM_TEXT, "Reply to " + followeeName + " recorded");
+
     }
 
     public void enableFeedbackMode(Message message) throws TelegramApiException {
