@@ -365,6 +365,11 @@ public class UserService
             messageId).stream().findFirst().orElse(null);
     }
 
+    public void deleteNotifications()
+    {
+        jdbcTemplate.update(Queries.DELETE_NOTIFICATIONS.getValue());
+    }
+
     @Data
     private static class FolloweePullTimestamp {
         long followeeId;

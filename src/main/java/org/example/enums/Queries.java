@@ -100,7 +100,9 @@ public enum Queries
             "   )\n" +
             "group by us.user_id, ur.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
-            "limit 1");
+            "limit 1"),
+    DELETE_NOTIFICATIONS("delete from users_notifications where estimated_time < current_time");
+
     String value;
 
     Queries(String value){
