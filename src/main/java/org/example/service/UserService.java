@@ -35,7 +35,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -143,9 +142,16 @@ public class UserService
         }
     }
 
-    public Integer getRequestRecord(Long userId, Long followeeId)
+    public Timestamp getLatestRequestTimestamp(Long userId, Long followeeId)
     {
-        return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWEE.getValue(), new Object[]{userId, followeeId}, Integer.class);
+        try
+        {
+            return jdbcTemplate.queryForObject(Queries.GET_LATEST_FOLLOW_REQUEST_TIMESTAMP.getValue(), new Object[]{userId, followeeId}, Timestamp.class);
+        }
+        catch (EmptyResultDataAccessException e)
+        {
+            return null;
+        }
     }
 
     public SendMessage getFollowers(Long userId, Long chatId) {

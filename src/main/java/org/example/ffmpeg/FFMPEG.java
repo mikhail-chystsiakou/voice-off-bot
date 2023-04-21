@@ -194,10 +194,11 @@ public class FFMPEG {
     private List<FileInfo> loadFileInfo(VirtualFileInfo virtualFileInfo) {
         String dataQuery = "select\n" +
                 "    ua.file_id, ua.duration, ua.recording_timestamp, ua.message_id, null followee_id\n" +
-                "from user_audios ua\n" +
+                "from user_audios ua left join user_feedbacks uf on ua.message_id = uf.message_id \n" +
                 "where ua.user_id = ?\n" +
                 "  and ua.recording_timestamp > ? and ua.recording_timestamp <= ?\n" +
                 "  and ua.reply_to_message_id is null\n" +
+                "  and uf.user_id is null\n" +
                 "order by ua.recording_timestamp";
 
         String replyQuery = "select\n" +

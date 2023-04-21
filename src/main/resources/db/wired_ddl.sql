@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS follow_requests
 (
     user_id bigint,
     followee_id bigint,
+    latest_request_timestamp timestamp with time zone default current_timestamp,
 
     constraint follow_requests_pk primary key (user_id, followee_id),
     constraint follow_requests_fk FOREIGN KEY(user_id) REFERENCES users (user_id) on delete cascade
@@ -95,7 +96,7 @@ create table user_replies (
   subscriber_id bigint,
   last_pull_timestamp timestamp with time zone,
 
-  constraint replies_pk primary key (user_id, user_message_id, subscriber_id)
+  constraint replies_pk primary key (user_id, subscriber_id)
 );
 
 create table pull_messages (

@@ -12,8 +12,8 @@ public enum ButtonCommands
     ENABLE_FEEDBACK_MODE("/feedbackenable", "Enable Feedback Mode \uD83D\uDE4B\u200D♀️"),
     DISABLE_FEEDBACK_MODE("/feedbackdisable", "Disable Feedback Mode \uD83D\uDE4A"),
     RETURN_TO_MAIN_MENU("/return", "Previous menu \uD83D\uDD19"),
-    FOLLOWERS("/followers", "Followers \uD83D\uDC42"),
-    FOLLOWING("/following", "Following \uD83D\uDC44")
+    FOLLOWERS("/followers", "Followers \uD83D\uDC6F\u200D♀️"),
+    FOLLOWING("/following", "Following \uD83E\uDEF6")
     ;
 
     String command;

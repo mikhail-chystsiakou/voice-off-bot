@@ -5,7 +5,7 @@ public enum Queries
     GET_USER_BY_ID("SELECT user_id FROM users WHERE user_id = ?"),
     ADD_USER("INSERT INTO users(user_id, username, first_name, last_name, chat_id, registered_date, notifications) VALUES(?, ?, ?, ?, ?, current_timestamp, 0) ON CONFLICT DO NOTHING"),
     ADD_CONTACT("INSERT INTO user_subscriptions(user_id, followee_id, last_pull_timestamp) VALUES(?, ?, current_timestamp) ON CONFLICT DO NOTHING"),
-    CHECK_FOLLOWEE("SELECT COUNT(*) FROM follow_requests WHERE user_id = ? and followee_id = ?"),
+    GET_LATEST_FOLLOW_REQUEST_TIMESTAMP("SELECT latest_request_timestamp FROM follow_requests WHERE user_id = ? and followee_id = ?"),
     CHECK_FOLLOWING("SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ? and followee_id = ?"),
     GET_FOLLOWEE_ID_BY_PULL_MESSAGE_ID("select followee_id from pull_messages where pull_message_id = ?"),
     GET_CHAT_ID_BY_USER_ID("SELECT chat_id FROM users where user_id = ?"),
@@ -17,11 +17,12 @@ public enum Queries
             "recording_timestamp, message_id, file_size, reply_to_message_id) " +
             "VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"),
     GET_LAST_PULL_TIME("SELECT followee_id user_id, last_pull_timestamp\n" +
-            "FROM user_subscriptions us, user_audios ua\n" +
+            "FROM user_subscriptions us, user_audios ua left join user_feedbacks uf on uf.message_id = ua.message_id\n" +
             "WHERE ua.user_id = us.followee_id\n" +
             " and ua.recording_timestamp > us.last_pull_timestamp\n" +
             " and ua.reply_to_message_id is null\n" +
             "  and us.user_id = ? \n" +
+            "  and uf.user_id is null \n" +
             "group by us.user_id, us.followee_id, us.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),
@@ -92,12 +93,14 @@ public enum Queries
             "    left join user_replies ur\n" +
             "          on ur.user_id = us.followee_id\n" +
             "          and ur.subscriber_id = us.user_id\n" +
+            "    left join user_feedbacks uf on uf.message_id = ua_subscriber.message_id\n" +
             "WHERE\n" +
             "   us.followee_id = ?\n" +
             "   and (\n" +
             "       ua_subscriber.recording_timestamp > ur.last_pull_timestamp \n" +
             "           or ur.last_pull_timestamp is null\n" +
             "   )\n" +
+            "   and uf.user_id is null\n" +
             "group by us.user_id, ur.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),

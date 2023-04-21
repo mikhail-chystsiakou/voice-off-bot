@@ -2,8 +2,8 @@ package org.example;
 
 public class Constants
 {
-    public static final String YES = "Yes";
-    public static final String No = "No";
+    public static final String YES = "Yes \uD83D\uDC4D";
+    public static final String NO = "No \uD83D\uDC4E";
     public static final String YOU_WAS_ADDED_TO_THE_SYSTEM = "You was added to the system.";
     public static final String YOU_HAVE_ALREADY_REGISTERED = "You have already registered";
 
@@ -28,7 +28,7 @@ public class Constants
         String SUBSCRIBE_REQUEST_SENT = "Ok, request to follow {0} sent";
         String SUBSCRIBE_REQUEST_QUESTION = "{0} wants to subscribe. Do you confirm?";
         String ALREADY_SUBSCRIBED = "You already subscribed to {0}";
-        String REQUEST_ALREADY_SENT = "Your request has already been sent to the user";
+        String REQUEST_ALREADY_SENT = "Your request has already been sent to this user. \nYou can sent request once a day per user.";
     }
 
     public interface Settings {

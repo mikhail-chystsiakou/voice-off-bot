@@ -10,7 +10,6 @@ import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
-import org.example.util.wrappers.UpdateToStringWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
@@ -187,7 +186,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
         if (update.hasCallbackQuery()){
             String answer = update.getCallbackQuery().getData();
-            if (answer.startsWith(Constants.YES) || answer.startsWith(Constants.No)){
+            System.out.println("Answer: " + answer);
+            if (answer.startsWith(Constants.YES) || answer.startsWith(Constants.NO)){
                 updateHandler.handleConfirmation(update.getCallbackQuery());
             }
             if (answer.contains("declineTutorial")){

@@ -33,7 +33,11 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -219,26 +223,35 @@ public class UpdateHandler {
             return;
         }
         UserInfo userInfo = userRepository.loadUserInfoById(contactId);
-        if (Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId)))
-        {
+        Timestamp latestRequestTimestamp = userService.getLatestRequestTimestamp(userId, contactId);
+        long utcDayAgo = Instant.now().minus(1, ChronoUnit.DAYS).atOffset(ZoneOffset.UTC).toInstant().toEpochMilli();
+        long latestRequestMillis = 0;
+        if (latestRequestTimestamp != null) {
+            latestRequestMillis = latestRequestTimestamp.getTime();
+        }
+        long latestRequestPlusDay = Instant.ofEpochMilli(latestRequestMillis).plus(1, ChronoUnit.DAYS).toEpochMilli();
+        long utcNow = Instant.now().atOffset(ZoneOffset.UTC).toInstant().toEpochMilli();
+
+        if (latestRequestPlusDay < utcNow) {
+            SendMessage messageForFollowee = new SendMessage();
+            messageForFollowee.setChatId(userInfo.getChatId());
+            messageForFollowee.setText(MessageFormat.format(
+                    SUBSCRIBE_REQUEST_QUESTION, getUserNameWithAt(message)));
+            messageForFollowee.setReplyMarkup(buttonsService.getInlineKeyboardMarkupForSubscription(userId));
+
+            sendMessage.setText(MessageFormat.format(SUBSCRIBE_REQUEST_SENT, userInfo.getUserNameWithAt()));
+
+            if (!Integer.valueOf(1).equals(userService.getLatestRequestTimestamp(userId, contactId))){
+                int result = userService.addRequestToConfirm(userId, contactId);
+            }
+
+            executeFunction.execute(sendMessage);
+            executeFunction.execute(messageForFollowee);
+        } else {
             sendMessage.setText(REQUEST_ALREADY_SENT);
             executeFunction.execute(sendMessage);
-            return;
-        }
-        SendMessage messageForFollowee = new SendMessage();
-        messageForFollowee.setChatId(userInfo.getChatId());
-        messageForFollowee.setText(MessageFormat.format(
-                SUBSCRIBE_REQUEST_QUESTION, getUserNameWithAt(message)));
-        messageForFollowee.setReplyMarkup(buttonsService.getInlineKeyboardMarkupForSubscription(userId));
-
-        sendMessage.setText(MessageFormat.format(SUBSCRIBE_REQUEST_SENT, userInfo.getUserNameWithAt()));
-
-        if (!Integer.valueOf(1).equals(userService.getRequestRecord(userId, contactId))){
-            int result = userService.addRequestToConfirm(userId, contactId);
         }
 
-        executeFunction.execute(sendMessage);
-        executeFunction.execute(messageForFollowee);
     }
 
     public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
@@ -257,7 +270,7 @@ public class UpdateHandler {
         messageToFollowee.setChatId(callbackQuery.getMessage().getChatId());
         Long followeeId = callbackQuery.getFrom().getId();
 
-        if (Constants.YES.equals(answer))
+        if (answer.contains(Constants.YES))
         {
             if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, followeeId))){
                 messageToFollowee.setText("The user is already following you");
@@ -273,7 +286,7 @@ public class UpdateHandler {
             }
         }
 
-        if (Constants.No.equals(answer))
+        if (answer.contains(Constants.NO))
         {
             if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, followeeId))){
                 messageToFollowee.setText("Data already processed. The user is already following you. To unsubscribe user use *Subscriptions* -> *Remove subscriber*.");
@@ -281,7 +294,7 @@ public class UpdateHandler {
                 executeFunction.execute(messageToFollowee);
                 return;
             }
-            else if (Integer.valueOf(1).equals(userService.getRequestRecord(userId, followeeId)))
+            else if (Integer.valueOf(1).equals(userService.getLatestRequestTimestamp(userId, followeeId)))
             {
                 messageToFollowee.setText(SUBSCRIBE_REQUEST_DECLINE_CONFIRM);
                 messageToUser.setChatId(userService.getChatIdByUserId(userId));
@@ -1136,7 +1149,7 @@ public class UpdateHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.setEntities(Arrays.asList(messageEntity));
-        sendMessage.setText("OK. You can go through the tutorial whenever you want using the /tutorial command");
+        sendMessage.setText("Ok, you can go through the tutorial whenever you want using the /tutorial command. For now you are ready to go! \n\nShare yourself. It's valuable 🤗. ");
         sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
     }

@@ -32,12 +32,12 @@ public class ButtonsService
 
     public InlineKeyboardMarkup getInlineKeyboardMarkupForSubscription(long userId){
         InlineKeyboardButton inlineKeyboardButtonYes = new InlineKeyboardButton();
-        inlineKeyboardButtonYes.setText("Yes");
-        inlineKeyboardButtonYes.setCallbackData("Yes_" + userId);
+        inlineKeyboardButtonYes.setText(Constants.YES);
+        inlineKeyboardButtonYes.setCallbackData(Constants.YES + "_" + userId);
 
         InlineKeyboardButton inlineKeyboardButtonNo = new InlineKeyboardButton();
-        inlineKeyboardButtonNo.setText("No");
-        inlineKeyboardButtonNo.setCallbackData("No_" + userId);
+        inlineKeyboardButtonNo.setText(Constants.NO);
+        inlineKeyboardButtonNo.setCallbackData(Constants.NO + "_" + userId);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(inlineKeyboardButtonYes, inlineKeyboardButtonNo)));
@@ -83,22 +83,22 @@ public class ButtonsService
     public InlineKeyboardMarkup getSettingsButtons()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Set timezone");
+        timezoneButton.setText("Set timezone \uD83C\uDF0E");
         timezoneButton.setCallbackData("settings_timezone");
 
         InlineKeyboardButton notificationsButton = new InlineKeyboardButton();
-        notificationsButton.setText("Set up notifications");
+        notificationsButton.setText("Set up notifications \uD83D\uDD14");
         notificationsButton.setCallbackData("settings_notifications");
 
         InlineKeyboardButton feedbackModeButton = new InlineKeyboardButton();
-        String feedbackModeButtonText = "Allow Feedback Mode";
+        String feedbackModeButtonText = "Allow Feedback Mode \uD83D\uDCAC";
         String feedbackCallback = SETTING_FEEDBACK_ALLOWED;
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
             logger.warn("UserInfo is null", new RuntimeException());
         }
         if (userInfo != null && userInfo.isFeedbackModeAllowed()) {
-            feedbackModeButtonText = "Prohibit Feedback Mode";
+            feedbackModeButtonText = "Prohibit Feedback Mode \uD83E\uDD10";
             feedbackCallback = SETTING_FEEDBACK_PROHIBITED;
         }
         feedbackModeButton.setText(feedbackModeButtonText);
@@ -115,7 +115,7 @@ public class ButtonsService
     public InlineKeyboardMarkup getShowTimestampsButton()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Show Timestamps");
+        timezoneButton.setText("Show Timestamps \uD83D\uDCDD");
         timezoneButton.setCallbackData("timestamps_show");
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -127,7 +127,7 @@ public class ButtonsService
     public InlineKeyboardMarkup getHideTimestampsButton()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Hide Timestamps");
+        timezoneButton.setText("Hide Timestamps \uD83D\uDE48");
         timezoneButton.setCallbackData("timestamps_hide");
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -138,11 +138,11 @@ public class ButtonsService
     public ReplyKeyboard getTimezoneMarkup(int stage)
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Set timezone");
+        timezoneButton.setText("Set timezone \uD83C\uDF0E");
         timezoneButton.setCallbackData("settings_timezone_" + ++stage);
 
         InlineKeyboardButton declineTimezoneButton = new InlineKeyboardButton();
-        declineTimezoneButton.setText("Skip");
+        declineTimezoneButton.setText("Skip ⛷");
         declineTimezoneButton.setCallbackData("declineTimezone");
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -153,7 +153,7 @@ public class ButtonsService
     public ReplyKeyboard getTimezoneMarkup()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Set timezone");
+        timezoneButton.setText("Set timezone \uD83C\uDF0E");
         timezoneButton.setCallbackData("settings_timezone");
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -220,11 +220,11 @@ public class ButtonsService
     public ReplyKeyboard getButtonsForTutorial()
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
-        approveButton.setText("Yes");
+        approveButton.setText("Yes \uD83D\uDC4D");
         approveButton.setCallbackData("isTutorial_1");
 
         InlineKeyboardButton declineButton = new InlineKeyboardButton();
-        declineButton.setText("No");
+        declineButton.setText("No \uD83D\uDC4E");
         declineButton.setCallbackData("declineTutorial");
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -235,7 +235,10 @@ public class ButtonsService
     public ReplyKeyboard getNextButton(int stage)
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
-        approveButton.setText("Next (" + stage + "/4)");
+        approveButton.setText("Next \uD83C\uDFC3 (" + stage + "/4)");
+        if (stage == 4) {
+            approveButton.setText("Finish \uD83C\uDFC1");
+        }
         approveButton.setCallbackData("isTutorial_" + ++stage);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -246,7 +249,7 @@ public class ButtonsService
     public ReplyKeyboard getFinishButton(int stage)
     {
         InlineKeyboardButton finishButton = new InlineKeyboardButton();
-        finishButton.setText("Finish");
+        finishButton.setText("Finish \uD83C\uDFC1");
         finishButton.setCallbackData("isTutorial_" + ++stage);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -478,15 +481,15 @@ public class ButtonsService
     public static InlineKeyboardMarkup getNotificationSettingsButtons()
     {
         InlineKeyboardButton pullNotificationButton = new InlineKeyboardButton();
-        pullNotificationButton.setText("Disable");
+        pullNotificationButton.setText("Disable \uD83D\uDD15");
         pullNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_PULL);
 
         InlineKeyboardButton instantNotificationButton = new InlineKeyboardButton();
-        instantNotificationButton.setText("Instant");
+        instantNotificationButton.setText("Instant \uD83D\uDECE");
         instantNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_INSTANT);
 
         InlineKeyboardButton onceADayNotificationButton = new InlineKeyboardButton();
-        onceADayNotificationButton.setText("Delayed");
+        onceADayNotificationButton.setText("Delayed ⏱");
         onceADayNotificationButton.setCallbackData(Constants.Settings.SETTING_NOTIFICATIONS_ONCE_A_DAY);
 
         InlineKeyboardButton previousMenuButton = new InlineKeyboardButton();
@@ -494,15 +497,15 @@ public class ButtonsService
         previousMenuButton.setCallbackData(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(instantNotificationButton, onceADayNotificationButton),
-                                                       Arrays.asList(pullNotificationButton, previousMenuButton)));
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(pullNotificationButton, instantNotificationButton, onceADayNotificationButton),
+                                                       Arrays.asList(previousMenuButton)));
         return inlineKeyboardMarkup;
     }
 
     public static InlineKeyboardMarkup getRemovingConfirmationButtons(Integer messageId)
     {
         InlineKeyboardButton noButton = new InlineKeyboardButton();
-        noButton.setText(Constants.No);
+        noButton.setText(Constants.NO);
         noButton.setCallbackData("remove_no");
 
         InlineKeyboardButton yesButton = new InlineKeyboardButton();
