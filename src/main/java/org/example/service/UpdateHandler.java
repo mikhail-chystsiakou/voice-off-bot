@@ -740,7 +740,8 @@ public class UpdateHandler {
         } else {
             userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
             userInfo.setReplyModeMessageId(replyModeMessageId);
-            followeeName = userInfo.getUserNameWithAt();
+            UserInfo followee = userRepository.loadUserInfoById(replyModeFolloweeId);
+            followeeName = followee.getUserNameWithAt();
         }
         String replyMessage = "";
         boolean modeChanged = false;
