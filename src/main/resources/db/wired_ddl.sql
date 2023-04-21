@@ -77,7 +77,7 @@ create table user_feedbacks (
     message_id bigint,
     text varchar,
     file_id varchar,
-    recording_timestamp timestamp with time zone default current_timestamp
+    recording_timestamp timestamp with time zone default current_timestamp,
 
     primary key (user_id, message_id)
 );
