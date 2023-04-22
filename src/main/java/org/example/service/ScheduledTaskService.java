@@ -32,7 +32,7 @@ public class ScheduledTaskService
         notifications.forEach(chatId -> {
             try
             {
-                executeFunction.execute(new SendMessage(chatId.toString(), "You have new recordings."));
+                executeFunction.execute(new SendMessage(chatId.toString(), "You have new recordings \uD83E\uDEE3"));
             }
             catch (TelegramApiException e)
             {

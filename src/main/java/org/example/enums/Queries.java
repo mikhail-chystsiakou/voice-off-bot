@@ -26,12 +26,23 @@ public enum Queries
             "group by us.user_id, us.followee_id, us.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),
-    GET_VOICE_PARTS("select recording_timestamp, duration, description, pull_count, message_id\n" +
-            "from user_audios\n" +
-            "where user_id = ?\n" +
-            "  and recording_timestamp > ?\n" +
-            "  and recording_timestamp <= ?\n" +
-            " order by recording_timestamp"),
+    GET_DATA_VOICE_PARTS("select ua.recording_timestamp, ua.duration, ua.description, ua.pull_count, ua.message_id\n" +
+            "from user_audios ua left join user_feedbacks uf on ua.message_id = uf.message_id\n" +
+            "where ua.user_id = ?\n" +
+            "  and ua.recording_timestamp > ?\n" +
+            "  and ua.recording_timestamp <= ?\n" +
+            "  and uf.user_id is null\n" +
+            "  and ua.reply_to_message_id is null\n" +
+            "order by recording_timestamp"),
+    GET_REPLY_VOICE_PARTS("select ua.recording_timestamp, ua.duration, ua.description, ua.pull_count, ua.message_id\n" +
+            "from pull_messages pm, user_audios ua left join user_feedbacks uf on ua.message_id = uf.message_id\n" +
+            "where ua.user_id = ?\n" +
+            "  and ua.recording_timestamp > ?\n" +
+            "  and ua.recording_timestamp <= ?\n" +
+            "  and uf.user_id is null\n" +
+            "  and ua.reply_to_message_id = pm.pull_message_id\n" +
+            "  and pm.followee_id = ?\n" +
+            "order by recording_timestamp"),
     SET_PULL_TIMESTAMP("UPDATE user_subscriptions set last_pull_timestamp = ? where user_id = ? and followee_id = ?"),
     REMOVE_REPLY_PULL_TIMESTAMP("delete from user_replies where user_id = ? and subscriber_id = ?"),
     ADD_REPLY_PULL_TIMESTAMP("insert into user_replies(last_pull_timestamp, user_id, subscriber_id) values(?, ?, ?)"),

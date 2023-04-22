@@ -105,7 +105,7 @@ public class FileStorage {
     public String getFullFilePath(long userId, long recordingTimestamp, int duration, String fileId,
                                   String extension, MessageType messageType, Integer messageId, Long replyModeFolloweeId) {
         String dir = getFileDir(userId, recordingTimestamp, messageType);
-        String destFilename = dir + createFileName(recordingTimestamp, duration, fileId, extension, messageId, replyModeFolloweeId);
+        String destFilename = dir + createFileName(recordingTimestamp, duration, fileId, extension, messageId, messageType, replyModeFolloweeId);
         return destFilename;
     }
 
@@ -123,15 +123,17 @@ public class FileStorage {
     }
 
     public String createFileName(long timestamp, int duration, String fileId,
-                                  String extension, Integer messageId, Long replyModeFolloweeId) {
+                                  String extension, Integer messageId, MessageType messageType, Long replyModeFolloweeId) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd_HH_mm_ss_SSS");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String timePrefix = sdf.format(new Date(timestamp));
         return
                 timePrefix
                     + "_" + duration
-                    + "_" + messageId
-                    + ((replyModeFolloweeId == null) ? "_0" : ("_" + replyModeFolloweeId))
+//                    + "_" + messageId
+                    + (MessageType.REPLY.equals(messageType)
+                        ? (replyModeFolloweeId == null) ? "_0" : ("_" + replyModeFolloweeId)
+                        : "")
                     + "_" + fileId
                     + "." + extension;
     }

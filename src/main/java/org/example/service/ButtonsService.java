@@ -201,7 +201,7 @@ public class ButtonsService
         keyboardMarkup.setKeyboard(Arrays.asList(
                 new KeyboardRow(Arrays.asList(buttonForSubscription)),
                 new KeyboardRow(Arrays.asList(buttonForUnfollowUser, buttonForUnsubscribeUser)),
-                 new KeyboardRow(Arrays.asList(followers, following)),
+                 new KeyboardRow(Arrays.asList(following, followers)),
                  new KeyboardRow(Arrays.asList(buttonReturnToPreviousMenu))));
         keyboardMarkup.setResizeKeyboard(true);
         return keyboardMarkup;
