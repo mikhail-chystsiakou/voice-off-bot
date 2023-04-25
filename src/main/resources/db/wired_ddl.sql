@@ -104,3 +104,24 @@ create table pull_messages (
    pull_message_id bigint primary key,
    orig_message_ids varchar
 );
+
+CREATE TABLE IF NOT EXISTS announcements
+(
+    announcement_id bigint primary key,
+    announcement_date timestamp with time zone,
+    announcement_text varchar,
+    is_passed int default 0
+);
+
+create type file_type as enum ('AUDIO', 'VIDEO', 'IMG');
+
+CREATE TABLE IF NOT EXISTS announcements_attachments
+(
+    announcement_id bigint,
+    file_id varchar,
+    file_type file_type,
+
+	constraint announcements_attachments_fk FOREIGN KEY(announcement_id) REFERENCES announcements (announcement_id) on delete cascade
+);
+
+ALTER TABLE users ADD CONSTRAINT c_unique_chat_id UNIQUE (chat_id);

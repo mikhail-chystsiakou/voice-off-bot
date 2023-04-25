@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.bot.MyTelegramBot;
+import org.example.model.AnnouncementInfo;
 import org.example.util.ExecuteFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +24,20 @@ public class ScheduledTaskService
     UserService userService;
 
     @Autowired
+    AnnouncementsService announcementsService;
+
+    @Autowired
     @Lazy
     ExecuteFunction executeFunction;
 
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
-    public void checkUserInstantNotifications(){
+    public void run(){
+        checkNotifications();
+        checkAnnouncements();
+    }
+
+    private void checkNotifications()
+    {
         List<Long> notifications = userService.getDelayNotifications();
         notifications.forEach(chatId -> {
             try
@@ -41,5 +51,18 @@ public class ScheduledTaskService
         });
         userService.deleteNotifications();
         logger.info("Scheduler: " + notifications);
+    }
+
+    private void checkAnnouncements()
+    {
+        List<AnnouncementInfo> announcements = announcementsService.getAnnouncements();
+
+        logger.info("announcements: " + announcements);
+
+        announcements.forEach(a -> {
+            announcementsService.setPassedForAnnouncement(a.getId());
+            announcementsService.runAnnouncementProcess(a);
+        });
+
     }
 }

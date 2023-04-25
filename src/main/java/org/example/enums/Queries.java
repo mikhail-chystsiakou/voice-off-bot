@@ -115,7 +115,14 @@ public enum Queries
             "group by us.user_id, ur.last_pull_timestamp\n" +
             "having count(1) >= 1\n" +
             "limit 1"),
-    DELETE_NOTIFICATIONS("delete from users_notifications where estimated_time < current_time");
+    DELETE_NOTIFICATIONS("delete from users_notifications where estimated_time < current_time"),
+    GET_ANNOUNCEMENTS_INFO("select an.announcement_id id, an.announcement_text text, anf.file_id, anf.file_type\n" +
+                          "from announcements an,\n" +
+                          "\t announcements_attachments anf\n" +
+                          "where an.announcement_id = anf.announcement_id" +
+                               " and an.announcement_date < current_timestamp" +
+                               " and an.is_passed = 0"),
+    SET_PASSED_TO_ANNOUNCEMENT("update announcements set is_passed = 1 where announcement_id = ?");
 
     String value;
 
