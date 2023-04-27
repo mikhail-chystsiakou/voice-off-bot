@@ -10,13 +10,13 @@ import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
+import org.example.util.wrappers.UpdateToStringWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -56,7 +56,6 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 .collect(Collectors.toList());
         execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
     }
-
 
     @SneakyThrows
     @Override
@@ -101,17 +100,18 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
         if (message != null) {
             UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
+
             if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
-            }
-            else if (message.hasVoice()){
+            } else if (message.getReplyToMessage() != null) {
+                updateHandler.processReply(message);
+            } else if (message.hasVoice()){
                 if (userInfo.isFeedbackModeEnabled()) {
                     updateHandler.storeFeedback(message);
                 } else {
                     updateHandler.handleVoiceMessage(message);
                 }
-            }
-            else if (message.hasText()){
+            } else if (message.hasText()){
                 String inputMessage = message.getText();
                 if (inputMessage.startsWith(BotCommands.START.getCommand())){
                     updateHandler.registerUser(message);
@@ -156,13 +156,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.getSubscriptions(message);
                 }
                 else {
-                    execute(new SendMessage(message.getChatId().toString(), "Not a command"));
+                    updateHandler.unsupportedTextInput(message);
                 }
             } else {
                 if (userInfo.isFeedbackModeEnabled()) {
                     updateHandler.storeFeedback(message);
-                } else {
-                    updateHandler.unsupportedResponse(message);
                 }
             }
             if (message.getUserShared() != null){

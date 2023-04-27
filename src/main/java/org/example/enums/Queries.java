@@ -41,7 +41,7 @@ public enum Queries
             "         where pull_timestamp <= ?\n" +
             "         and user_id = ?\n" +
             "order by last_pull_timestamp desc limit 1"),
-    GET_VOICE_PARTS_BY_TIMESTAMPS("select * from user_audios where user_id = ? and recording_timestamp > ? and recording_timestamp < ?"),
+    GET_VOICE_PARTS_BY_TIMESTAMPS("select * from user_audios where user_id = ? and recording_timestamp > ? and recording_timestamp < ? order by recording_timestamp asc"),
     UPDATE_NOTIFICATION_BY_USER("update users set notifications = ? where user_id = ?"),
     UPDATE_FEEDBACK_ALLOWED_BY_USER("update users set feedback_mode_allowed = ? where user_id = ?"),
     UPDATE_FEEDBACK_ENABLED_BY_USER("update users set feedback_mode_enabled = ? where user_id = ?"),
@@ -52,7 +52,20 @@ public enum Queries
     CHECK_USER_NOTIFICATION("select count(*) from users_notifications where user_id = ?"),
     ADD_USER_NOTIFICATION("insert into users_notifications(user_id, estimated_time) values(?, ?) ON CONFLICT DO NOTHING"),
     GET_CHAT_ID_FOR_DELAY_NOTIFICATIONS("select u.chat_id from users_delay_notifications n, users u where n.estimated_time < current_time and n.user_id = u.user_id"),
-    STORE_FEEDBACK("insert into user_feedbacks (user_id, message_id, text, file_id) values (?, ?, ?, ?)");
+    STORE_FEEDBACK("insert into user_feedbacks (user_id, message_id, text, file_id) values (?, ?, ?, ?)"),
+    GET_REPLIES("select *\n" +
+            "from\n" +
+            "    user_audios ua,\n" +
+            "    (select *\n" +
+            "        from user_replies ur, user_audios ua\n" +
+            "    where\n" +
+            "        ur.user_id = ?\n" +
+            "      and ur.subscriber_id = ua.user_id\n" +
+            "      and ur.user_message_id = ua.reply_to_message_id\n" +
+            "      and ua.recording_timestamp >= ur.last_pull_timestamp\n" +
+            "    group by ua.user_id\n" +
+            "    limit 1) r\n" +
+            "where ua.message_id = r.message_id");
     String value;
 
     Queries(String value){
