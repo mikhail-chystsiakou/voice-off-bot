@@ -4,7 +4,7 @@ public class Constants
 {
     public static final String YES = "Yes \uD83D\uDC4D";
     public static final String NO = "No \uD83D\uDC4E";
-    public static final String YOU_WAS_ADDED_TO_THE_SYSTEM = "You was added to the system \uD83E\uDD73";
+    public static final String YOU_WAS_ADDED_TO_THE_SYSTEM = "You were added to the system \uD83E\uDD73";
     public static final String YOU_HAVE_ALREADY_REGISTERED = "You have already registered \uD83D\uDE09";
 
     public interface Messages {

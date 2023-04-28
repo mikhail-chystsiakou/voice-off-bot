@@ -620,8 +620,8 @@ public class UpdateHandler {
                 result.setText(MessageFormat.format(UNSUBSCRIBED, followee.getUserNameWithAt()));
 
                 SendMessage unsubscribeNotification = new SendMessage();
-                unsubscribeNotification.setChatId(message.getChatId());
-                unsubscribeNotification.setText(MessageFormat.format(SUBSCRIBER_UNSUBSCRIBED, followee.getUserNameWithAt()));
+                unsubscribeNotification.setChatId(followee.getChatId());
+                unsubscribeNotification.setText(MessageFormat.format(SUBSCRIBER_UNSUBSCRIBED, getUserNameWithAt(message)));
                 executeFunction.execute(unsubscribeNotification);
             } else {
                 result.setText(MessageFormat.format(NOT_SUBSCRIBED, followee.getUserNameWithAt()));
