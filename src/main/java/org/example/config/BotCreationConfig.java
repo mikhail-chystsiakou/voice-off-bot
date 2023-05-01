@@ -2,7 +2,7 @@ package org.example.config;
 
 import org.example.bot.MyTelegramBot;
 import org.example.service.UpdateHandler;
-import org.example.service.UserService;
+import org.example.service.impl.UserServiceImpl;
 import org.example.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +18,7 @@ public class BotCreationConfig {
     @Autowired
     UpdateHandler updateHandler;
     @Autowired
-    UserService userService;
+    UserServiceImpl userService;
     @Autowired
     TaskExecutor taskExecutor;
     @Autowired
@@ -29,7 +29,7 @@ public class BotCreationConfig {
     @Bean
     public MyTelegramBot bot(BotConfig botConfig,
                              UpdateHandler updateHandler,
-                             UserService userService,
+                             UserServiceImpl userService,
                              TaskExecutor taskExecutor) {
         DefaultBotOptions botOptions = new DefaultBotOptions();
         botOptions.setBaseUrl(botConfig.apiUrl);

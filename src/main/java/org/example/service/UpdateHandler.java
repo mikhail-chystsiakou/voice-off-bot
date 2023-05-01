@@ -6,6 +6,7 @@ import org.example.enums.MessageType;
 import org.example.ffmpeg.FileInfo;
 import org.example.model.UserInfo;
 import org.example.repository.UserRepository;
+import org.example.service.impl.UserServiceImpl;
 import org.example.storage.FileStorage;
 import org.example.util.*;
 import org.slf4j.Logger;
@@ -37,7 +38,6 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,7 +55,7 @@ public class UpdateHandler {
     private static final String FILE_DATE_PATTERN = "yyyy" + File.separator + "MM" + File.separator + "dd_HH_mm_ss_SSS";
 
     @Autowired
-    UserService userService;
+    UserServiceImpl userService;
 
     @Autowired
     @Lazy
@@ -215,7 +215,7 @@ public class UpdateHandler {
         sendMessage.setChatId(chatId);
         sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
 
-        if (userService.getUserById(contactId) == null)
+        if (userService.getUserIdById(contactId) == null)
         {
             sendMessage.setText(NOT_JOINED);
             executeFunction.execute(sendMessage);
@@ -223,12 +223,12 @@ public class UpdateHandler {
         }
         if (Integer.valueOf(1).equals(userService.getSubscriberByUserIdAndSubscriberId(userId, contactId)))
         {
-            UserInfo contact = userRepository.loadUserInfoById(contactId);
+            UserInfo contact = userRepository.findById(contactId).orElse(null);
             sendMessage.setText(MessageFormat.format(ALREADY_SUBSCRIBED, contact.getUserNameWithAt()));
             executeFunction.execute(sendMessage);
             return;
         }
-        UserInfo userInfo = userRepository.loadUserInfoById(contactId);
+        UserInfo userInfo = userRepository.findById(contactId).orElse(null);
         Timestamp latestRequestTimestamp = userService.getLatestRequestTimestamp(userId, contactId);
         long utcDayAgo = Instant.now().minus(1, ChronoUnit.DAYS).atOffset(ZoneOffset.UTC).toInstant().toEpochMilli();
         long latestRequestMillis = 0;
@@ -608,7 +608,7 @@ public class UpdateHandler {
         SendMessage result = new SendMessage();
         result.setChatId(message.getChatId());
 
-        UserInfo followee = userRepository.loadUserInfoById(followeeId);
+        UserInfo followee = userRepository.findById(followeeId).orElse(null);
         if (followee == null)
         {
             result.setText(NOT_JOINED);
@@ -640,7 +640,7 @@ public class UpdateHandler {
         Long userId = message.getUserShared().getUserId();
         SendMessage result = new SendMessage();
         result.setChatId(message.getChatId());
-        UserInfo follower = userRepository.loadUserInfoById(userId);
+        UserInfo follower = userRepository.findById(userId).orElse(null);
         if (follower == null)
         {
             result.setText(NOT_JOINED);
@@ -747,7 +747,7 @@ public class UpdateHandler {
             }
 
             System.out.println("loading user info by id " + followeeId);
-            UserInfo followee = userRepository.loadUserInfoById(followeeId);
+            UserInfo followee = userRepository.findById(followeeId).orElse(null);
             followeeName = followee.getUserNameWithAt();
         }
         String replyMessage = "";
@@ -987,7 +987,7 @@ public class UpdateHandler {
 
         if (callback.equals("timestamps_show")) {
             long userId = callbackQuery.getFrom().getId();
-            UserInfo userInfo = userRepository.loadUserInfoById(userId);
+            UserInfo userInfo = userRepository.findById(userId).orElse(null);
             System.out.println("callback date: " + callbackQuery.getMessage().getDate());
             long audioMessageTime = callbackQuery.getMessage().getDate() * 1000L;
             // 2104732264000
@@ -995,7 +995,7 @@ public class UpdateHandler {
             Triplet<Long, Long, Long> getPullTimestamps = getPreviousPullTimestamp(userId, audioMessageTime);
 
             // +1s because time is truncated
-            List<UserService.VoicePart> voiceParts = loadVoiceParts(
+            List<UserServiceImpl.VoicePart> voiceParts = loadVoiceParts(
                     getPullTimestamps.getFirst(),
                     getPullTimestamps.getSecond()  + 1000L,
                     getPullTimestamps.getThird()
@@ -1003,7 +1003,7 @@ public class UpdateHandler {
             System.out.println(Arrays.toString(voiceParts.toArray()));
             String caption = "";
             if (voiceParts.size() > 1
-                    || (!voiceParts.isEmpty() && voiceParts.get(0).description != null)) {
+                    || (!voiceParts.isEmpty() && voiceParts.get(0).getDescription() != null)) {
                 caption = getAudioCaption(voiceParts, userInfo.getTimezone());
             }
             System.out.println("new caption: " + caption);
@@ -1033,7 +1033,7 @@ public class UpdateHandler {
                 }, new Timestamp(nextTimestamp), userId);
     }
 
-    private List<UserService.VoicePart> loadVoiceParts(long userId, Long pullTimestamp, Long lastPullTimestamp) {
+    private List<UserServiceImpl.VoicePart> loadVoiceParts(long userId, Long pullTimestamp, Long lastPullTimestamp) {
         if (pullTimestamp == null || lastPullTimestamp == null) return Collections.emptyList();
 
         System.out.println("Loading voice parts for user " + userId + ", " + new Timestamp(pullTimestamp) + " - " + new Timestamp(lastPullTimestamp) );
@@ -1041,30 +1041,30 @@ public class UpdateHandler {
 
         return jdbcTemplate.queryForStream(GET_VOICE_PARTS_BY_TIMESTAMPS.getValue(),
                 (rs, rn) -> {
-                    UserService.VoicePart voicePart = new UserService.VoicePart();
-                    voicePart.duration = rs.getLong("duration");
-                    voicePart.description = rs.getString("description");
-                    voicePart.recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
+                    UserServiceImpl.VoicePart voicePart = new UserServiceImpl.VoicePart();
+                    voicePart.setDuration(rs.getLong("duration"));
+                    voicePart.setDescription(rs.getString("description"));
+                    voicePart.setRecordingTimestamp(rs.getTimestamp("recording_timestamp").getTime());
                     return voicePart;
                 }, userId, new Timestamp(lastPullTimestamp), new Timestamp(pullTimestamp)).collect(Collectors.toList());
     }
 
-    private String getAudioCaption(List<UserService.VoicePart> voiceParts, int zoneOffset) {
+    private String getAudioCaption(List<UserServiceImpl.VoicePart> voiceParts, int zoneOffset) {
         long start = 0;
         SimpleDateFormat sdf = new SimpleDateFormat("`yyyy.MM.dd, HH:mm`");
         sdf.setTimeZone(getTimeZoneByOffset(zoneOffset));
         StringJoiner sj = new StringJoiner("\n");
-        for (UserService.VoicePart vp : voiceParts) {
+        for (UserServiceImpl.VoicePart vp : voiceParts) {
 
             String timeHandle = getTimeHandle(start);
-            String recordingTimestamp = sdf.format(new Timestamp(vp.recordingTimestamp));
+            String recordingTimestamp = sdf.format(new Timestamp(vp.getRecordingTimestamp()));
             String voiceDescription = vp.getDescription();
             voiceDescription = voiceDescription == null ? "" : "\n" + voiceDescription;
 
             String caption = timeHandle + " - " + recordingTimestamp + voiceDescription;
             sj.add(caption);
 
-            start += vp.duration;
+            start += vp.getDuration();
         }
         return "\n" + sj.toString();
     }

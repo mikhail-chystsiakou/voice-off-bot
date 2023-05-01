@@ -7,7 +7,7 @@ import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.model.UserInfo;
 import org.example.service.UpdateHandler;
-import org.example.service.UserService;
+import org.example.service.impl.UserServiceImpl;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
 import org.slf4j.Logger;
@@ -30,7 +30,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
 
     UpdateHandler updateHandler;
-    UserService userService;
+    UserServiceImpl userService;
     TaskExecutor taskExecutor;
     PullProcessingSet pullProcessingSet;
     ThreadLocalMap tlm;
@@ -38,7 +38,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     public MyTelegramBot(DefaultBotOptions botOptions,
                          BotConfig botConfig,
                          UpdateHandler updateHandler,
-                         UserService userService,
+                         UserServiceImpl userService,
                          TaskExecutor taskExecutor,
                          PullProcessingSet pullProcessingSet,
                          ThreadLocalMap tlm) throws TelegramApiException
@@ -238,6 +238,6 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     }
 
     private boolean isRegistered(Long userId) {
-        return userService.getUserById(userId) != null;
+        return userService.getUserIdById(userId) != null;
     }
 }
