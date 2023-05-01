@@ -8,9 +8,11 @@ import org.example.enums.BotCommands;
 import org.example.enums.ButtonCommands;
 import org.example.model.UserInfo;
 import org.example.service.UpdateHandler;
-import org.example.service.UserService;
+import org.example.service.impl.UserServiceImpl;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -28,7 +30,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class MyTelegramBot extends TelegramLongPollingBot {
     UpdateHandler updateHandler;
-    UserService userService;
+    UserServiceImpl userService;
     TaskExecutor taskExecutor;
     PullProcessingSet pullProcessingSet;
     ThreadLocalMap tlm;
@@ -36,7 +38,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     public MyTelegramBot(DefaultBotOptions botOptions,
                          BotConfig botConfig,
                          UpdateHandler updateHandler,
-                         UserService userService,
+                         UserServiceImpl userService,
                          TaskExecutor taskExecutor,
                          PullProcessingSet pullProcessingSet,
                          ThreadLocalMap tlm) throws TelegramApiException
@@ -85,12 +87,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             message = update.getMessage();
             if (update.hasEditedMessage()) message = update.getEditedMessage();
 
-            log.debug("Checking if registered");
             if (!checkRegistered(message)) {
-                log.debug("User is not registered");
                 return;
             }
-            log.debug("User registered");
             userId = message.getFrom().getId();
             userService.loadUserInfo(userId);
         } else if (update.hasCallbackQuery()) {
@@ -239,7 +238,6 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     }
 
     private boolean isRegistered(Long userId) {
-        log.debug("isRegistered({})", userId);
-        return userService.getUserById(userId) != null;
+        return userService.getUserIdById(userId) != null;
     }
 }
