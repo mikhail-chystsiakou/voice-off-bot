@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.bot.MyTelegramBot;
 import org.example.model.AnnouncementInfo;
+import org.example.service.impl.UserServiceImpl;
 import org.example.util.ExecuteFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ public class ScheduledTaskService
     private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
 
     @Autowired
-    UserService userService;
+    UserServiceImpl userService;
 
     @Autowired
     AnnouncementsService announcementsService;
