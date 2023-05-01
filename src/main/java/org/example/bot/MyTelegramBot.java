@@ -1,6 +1,7 @@
 package org.example.bot;
 
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.enums.BotCommands;
@@ -10,8 +11,6 @@ import org.example.service.UpdateHandler;
 import org.example.service.UserService;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -26,9 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class MyTelegramBot extends TelegramLongPollingBot {
-    private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
-
     UpdateHandler updateHandler;
     UserService userService;
     TaskExecutor taskExecutor;
@@ -59,7 +57,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        logger.info("Got message: {}", update);
+        log.info("Got message: {}", update);
         taskExecutor.execute(() -> {
             try {
                 handleUpdate(update);
@@ -70,26 +68,29 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                         pullProcessingSet.finishProcessingForUser(update.getMessage().getFrom().getId());
                     }
                 } catch (Exception e1) {
-                    logger.error("Failed to clear processing flag for message {}", update, e1);
+                    log.error("Failed to clear processing flag for message {}", update, e1);
                 }
 
-                logger.error("Top-level exception", e);
+                log.error("Top-level exception", e);
             }
         });
 
     }
 
     private void handleUpdate(Update update) throws TelegramApiException, IOException {
-        logger.trace("Start processing message with id '{}'", update.getUpdateId());
+        log.trace("Start processing message with id '{}'", update.getUpdateId());
         Message message = null;
         long userId;
         if (update.hasMessage() || update.hasEditedMessage()) {
             message = update.getMessage();
             if (update.hasEditedMessage()) message = update.getEditedMessage();
 
+            log.debug("Checking if registered");
             if (!checkRegistered(message)) {
+                log.debug("User is not registered");
                 return;
             }
+            log.debug("User registered");
             userId = message.getFrom().getId();
             userService.loadUserInfo(userId);
         } else if (update.hasCallbackQuery()) {
@@ -213,7 +214,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 updateHandler.getSettings(update.getCallbackQuery().getMessage());
             }
         }
-        logger.trace("Finish processing message with id '{}'", update.getUpdateId());
+        log.trace("Finish processing message with id '{}'", update.getUpdateId());
     }
 
     @Override
@@ -238,6 +239,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     }
 
     private boolean isRegistered(Long userId) {
+        log.debug("isRegistered({})", userId);
         return userService.getUserById(userId) != null;
     }
 }

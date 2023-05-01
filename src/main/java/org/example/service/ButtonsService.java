@@ -83,11 +83,11 @@ public class ButtonsService
     public InlineKeyboardMarkup getSettingsButtons()
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
-        timezoneButton.setText("Set timezone \uD83C\uDF0E");
+        timezoneButton.setText("Timezones \uD83C\uDF0E");
         timezoneButton.setCallbackData("settings_timezone");
 
         InlineKeyboardButton notificationsButton = new InlineKeyboardButton();
-        notificationsButton.setText("Set up notifications \uD83D\uDD14");
+        notificationsButton.setText("Notifications \uD83D\uDD14");
         notificationsButton.setCallbackData("settings_notifications");
 
         InlineKeyboardButton feedbackModeButton = new InlineKeyboardButton();

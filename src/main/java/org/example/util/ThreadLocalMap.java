@@ -19,7 +19,7 @@ public class ThreadLocalMap {
         tmpFiles = new ConcurrentHashMap<>();
     }
 
-    public void put(String key, Object value) {
+    public synchronized void put(String key, Object value) {
         long threadId = Thread.currentThread().getId();
         tmpFiles.compute(threadId, (k, v) -> {
             if (v == null) {
@@ -30,13 +30,13 @@ public class ThreadLocalMap {
         });
     }
 
-    public <T> T get(String key) {
+    public synchronized <T> T get(String key) {
         long threadId = Thread.currentThread().getId();
 
         return (T) tmpFiles.getOrDefault(threadId, new ConcurrentHashMap<>()).get(key);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         long threadId = Thread.currentThread().getId();
         tmpFiles.remove(threadId);
     }

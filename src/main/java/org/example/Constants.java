@@ -8,7 +8,7 @@ public class Constants
     public static final String YOU_HAVE_ALREADY_REGISTERED = "You have already registered \uD83D\uDE09";
 
     public interface Messages {
-        String SEND_START_FIRST = "Send /start command before using the bot \uD83D\uDC82";
+        String SEND_START_FIRST = "Send /start command before using bot \uD83D\uDC82";
         String CHOOSE_OPTION_FROM_MENU = "Choose the option from menu below \uD83D\uDC47";
         String SELECT_SETTING = "Select setting";
         String OK_RECORDED = "Ok, recorded \uD83D\uDC4D";

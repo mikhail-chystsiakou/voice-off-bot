@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
@@ -121,20 +123,22 @@ public class UpdateHandler {
         Long userId = message.getFrom().getId();
         Integer replyModeMessageId = null;
         Long replyModeFolloweeId = null;
-        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+
         if (message.getReplyToMessage() != null) {
             replyModeMessageId = message.getReplyToMessage().getMessageId();
             replyModeFolloweeId = userService.getFolloweeByPullMessage(replyModeMessageId);
-            userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
-            userInfo.setReplyModeMessageId(replyModeMessageId);
-            userService.updateReplyEnabled(userId, replyModeFolloweeId, replyModeMessageId);
-        } else if (userInfo != null && userInfo.getReplyModeMessageId() != null) {
-            replyModeMessageId = userInfo.getReplyModeMessageId();
-            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
         }
 
         if (replyModeMessageId != null) {
-            enableReplyMode(message);
+            if (!enableReplyMode(message)) {
+                return;
+            }
+        }
+
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        if (userInfo != null && userInfo.getReplyModeMessageId() != null) {
+            replyModeMessageId = userInfo.getReplyModeMessageId();
+            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
         }
         Voice voice = message.getVoice();
 
@@ -150,6 +154,7 @@ public class UpdateHandler {
         if (message.getCaption() != null) {
             storeMessageDescription(message, false);
         }
+
 
         SendMessage reply = new SendMessage();
 
@@ -485,7 +490,7 @@ public class UpdateHandler {
                 }
             });
             if (userService.isDataAvailable(message.getFrom().getId())) {
-                executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available \uD83E\uDEE3..."));
+                executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available \uD83D\uDE0F..."));
             }
             userService.deleteUserFromDelayNotification(message.getFrom().getId());
         }
@@ -696,16 +701,22 @@ public class UpdateHandler {
         executeFunction.execute(sendMessage);
     }
 
-    public void enableReplyMode(Message message) throws TelegramApiException {
+    public boolean enableReplyMode(Message message) throws TelegramApiException {
         long userId = message.getFrom().getId();
-        UserInfo userInfo = tlm.get(KEY_USER_INFO);
-        boolean isSubscriber =  userService.isSubscriber(userId, userInfo.getReplyModeFolloweeId());
-        if (!isSubscriber) {
-            disableReplyMode(message, "You are not subscriber of " + userInfo.getUserNameWithAt() + ". ");
-        } else {
-            changeReplyMode(message, true, "");
-        }
 
+        UserInfo userInfo = tlm.get(KEY_USER_INFO);
+        Long followeeId = userInfo.getReplyModeFolloweeId();
+        if (followeeId == null && message.getReplyToMessage() != null) {
+            followeeId = userService.getFolloweeByPullMessage(message.getReplyToMessage().getMessageId());
+        }
+        boolean isSubscriber =  userService.isSubscriber(followeeId, userId);
+        logger.debug("Trying to enable reply mode of {} to {}", followeeId, userId);
+        if (isSubscriber) {
+            changeReplyMode(message, true, "");
+        } else {
+            disableReplyMode(message, "You can't send replies to users that are not subscribed to you \uD83D\uDE4A");
+        }
+        return isSubscriber;
     }
 
 
@@ -717,58 +728,60 @@ public class UpdateHandler {
         changeReplyMode(message, false, prefix);
     }
 
-    public void changeReplyMode(Message message, boolean newState, String prefix) throws TelegramApiException {
+    public void changeReplyMode(Message message, boolean enableReplyMode, String prefix) throws TelegramApiException {
         long userId = message.getFrom().getId();
         Long replyModeFolloweeId = null;
         Integer replyModeMessageId = null;
+
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
-        boolean wasEnabled = false;
-        if (newState && message.getReplyToMessage() != null) {
+        boolean wasEnabled = userInfo.getReplyModeMessageId() != null;
+
+        logger.debug("WasEnabled: {}", wasEnabled);
+
+        if (enableReplyMode && wasEnabled) {
+            replyModeMessageId = userInfo.getReplyModeMessageId();
+            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
+        } else if (enableReplyMode) {
             replyModeMessageId = message.getReplyToMessage().getMessageId();
             replyModeFolloweeId = userService.getFolloweeByPullMessage(replyModeMessageId);
-        } else if (newState && userInfo != null) {
-            replyModeFolloweeId = userInfo.getReplyModeFolloweeId();
-            replyModeMessageId = userInfo.getReplyModeMessageId();
-            wasEnabled = (replyModeMessageId != null);
-            System.out.println("userInfo is not null " + userInfo);
         }
-        System.out.println("replyModeFolloweeId: " + replyModeFolloweeId + ", replyMessageId: " + replyModeMessageId);
+
+        logger.debug("replyModeFolloweeId: {}, replyMessageId: {}", replyModeFolloweeId, replyModeMessageId);
         userService.updateReplyEnabled(userId, replyModeFolloweeId, replyModeMessageId);
+        userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
+        userInfo.setReplyModeMessageId(replyModeMessageId);
 
         String followeeName = "@username";
-        if (userInfo == null) {
-            logger.warn("UserInfo is null", new RuntimeException());
-        } else {
-            Long followeeId = userInfo.getReplyModeFolloweeId();
-            userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
-            userInfo.setReplyModeMessageId(replyModeMessageId);
-            if (userInfo.getReplyModeFolloweeId() != null) {
-                followeeId = userInfo.getReplyModeFolloweeId();
-            }
-
-            System.out.println("loading user info by id " + followeeId);
-            UserInfo followee = userRepository.loadUserInfoById(followeeId);
+        if (replyModeFolloweeId != null) {
+            UserInfo followee = userRepository.loadUserInfoById(replyModeFolloweeId);
             followeeName = followee.getUserNameWithAt();
         }
+
         String replyMessage = "";
-        boolean modeChanged = false;
-        if (newState && wasEnabled) {
+        boolean sendSecondMessage = true;
+        if (enableReplyMode && wasEnabled) {
             replyMessage = "Reply to " + followeeName + " recorded \uD83E\uDEE1";
-        } else if (newState && replyModeFolloweeId != null) {
+            sendSecondMessage = false;
+        } else if (enableReplyMode) {
             replyMessage = "Reply Mode enabled \uD83D\uDE4B\u200D♀️. All voice messages will be sent only to " + followeeName;
-            modeChanged = true;
+        } else if (wasEnabled) {
+            replyMessage = prefix + "Reply Mode disabled \uD83D\uDE4A";
         } else {
-            replyMessage = prefix + "Reply Mode disabled \uD83D\uDE4A. " + followeeName + " will get your replies on next pull";
-            modeChanged = true;
+            replyMessage = prefix;
+            if (ObjectUtils.isEmpty(replyMessage)) {
+                replyMessage = "Exited from Reply Mode";
+            }
         }
-        if (modeChanged) {
-            SendMessage sm = new SendMessage();
-            sm.setChatId(message.getChatId());
-            sm.setText(replyMessage);
-            sm.setReplyMarkup(buttonsService.getInitMenuButtons());
-            executeFunction.execute(sm);
+
+        SendMessage sm = new SendMessage();
+        sm.setChatId(message.getChatId());
+        sm.setText(replyMessage);
+        sm.setReplyMarkup(buttonsService.getInitMenuButtons());
+        executeFunction.execute(sm);
+
+        if (sendSecondMessage) {
+            tlm.put(KEY_REPLY_CONFIRM_TEXT, "Reply to " + followeeName + " recorded \uD83E\uDEE1");
         }
-        tlm.put(KEY_REPLY_CONFIRM_TEXT, "Reply to " + followeeName + " recorded \uD83E\uDEE1");
 
     }
 
