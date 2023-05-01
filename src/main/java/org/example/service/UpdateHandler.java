@@ -1,5 +1,6 @@
 package org.example.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.Constants;
 import org.example.config.BotConfig;
 import org.example.enums.MessageType;
@@ -52,8 +53,8 @@ import static org.example.storage.FileStorage.DEFAULT_AUDIO_EXTENSION;
 import static org.example.util.ThreadLocalMap.*;
 
 @Component
+@Slf4j
 public class UpdateHandler {
-    private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
     private static final String FILE_DATE_PATTERN = "yyyy" + File.separator + "MM" + File.separator + "dd_HH_mm_ss_SSS";
 
     @Autowired
@@ -102,7 +103,7 @@ public class UpdateHandler {
         int messageId = message.getMessageId();
         long userId = message.getFrom().getId();
         String description = message.getCaption();
-        logger.trace("Updated message description " +
+        log.trace("Updated message description " +
                 "for message id '{}' of user '{}' to '{}'", messageId, userId, description);
         jdbcTemplate.update(
                 UPDATE_MESSAGE_DESCRIPTION.getValue(),
@@ -190,11 +191,10 @@ public class UpdateHandler {
             LocalTime localTimeWithTimeZone = LocalTime.now(getTimeZoneByOffset(key).toZoneId());
             LocalTime localTime = LocalTime.now();
 
-            logger.info("local time " + localTime);
-            logger.info("localTimeWithTimeZone " + localTimeWithTimeZone);
+            log.info("localTimeWithTimeZone " + localTimeWithTimeZone);
             LocalTime estimatedTime = localTime.plusHours(12);
             LocalTime estimatedTimeWithTimeZone = localTimeWithTimeZone.plusHours(12);
-            logger.info("estimatedTimeWithTimeZone " + estimatedTimeWithTimeZone);
+            log.info("estimatedTimeWithTimeZone " + estimatedTimeWithTimeZone);
             int delta = 0;
             if (estimatedTimeWithTimeZone.getHour() < 9)
             {
@@ -204,9 +204,9 @@ public class UpdateHandler {
             {
                 delta = 24 - estimatedTimeWithTimeZone.getHour() + 9;
             }
-            logger.info("delta " + delta);
+            log.info("delta " + delta);
             LocalTime estimatedTimeWithDelta = estimatedTime.plusHours(delta);
-            logger.info("estimatedTimeWithDelta" + estimatedTimeWithDelta);
+            log.info("estimatedTimeWithDelta" + estimatedTimeWithDelta);
             value.forEach(userId -> userService.addUserNotification(userId, estimatedTimeWithDelta));
         });
     }
@@ -268,7 +268,7 @@ public class UpdateHandler {
     public void handleConfirmation(CallbackQuery callbackQuery) throws TelegramApiException
     {
         String[] data = callbackQuery.getData().split("_");
-        logger.debug(Arrays.toString(data));
+        log.debug(Arrays.toString(data));
         System.out.println(callbackQuery.getData());
         System.out.println(Arrays.toString(data));
 
@@ -332,7 +332,7 @@ public class UpdateHandler {
                 user.getFirstName(),
                 user.getLastName()
         );
-        logger.info("User registered: {}", user);
+        log.info("User registered: {}", user);
 
         redownloadUserPhoto(user.getId());
 
@@ -358,7 +358,7 @@ public class UpdateHandler {
     }
 
     private void redownloadUserPhoto(Long userId) throws TelegramApiException {
-        logger.trace("Trying to re-download profile photo of user with id '{}'", userId);
+        log.trace("Trying to re-download profile photo of user with id '{}'", userId);
         GetUserProfilePhotos guph = new GetUserProfilePhotos();
 
         guph.setUserId(userId);
@@ -367,17 +367,17 @@ public class UpdateHandler {
         UserProfilePhotos photos = executeFunction.execute(guph);
 
         if (photos.getPhotos().isEmpty()) {
-            logger.trace("No photos available for user '{}'", userId);
+            log.trace("No photos available for user '{}'", userId);
             return;
         }
         List<PhotoSize> photoSizes = photos.getPhotos().get(0);
         if (photoSizes.isEmpty()) {
-            logger.trace("No photo sizes available for user '{}'", userId);
+            log.trace("No photo sizes available for user '{}'", userId);
             return;
         }
         PhotoSize photo = photoSizes.get(0);
         if (photo == null) {
-            logger.trace("No photo size available for user '{}'", userId);
+            log.trace("No photo size available for user '{}'", userId);
             return;
         }
 
@@ -389,17 +389,17 @@ public class UpdateHandler {
 
     private void removePreviousImages(Long userId)
     {
-        logger.trace("Removing old images for user '{}'", userId);
+        log.trace("Removing old images for user '{}'", userId);
         String folderPath = botConfig.getStoragePath() + botConfig.getProfilePicturesPath();
         File folder = new File(folderPath);
         final File[] files = folder.listFiles((dir,name) -> name.matches(userId.toString() + ".*?"));
         if (files == null) {
-            logger.trace("No old images for user '{}'", userId);
+            log.trace("No old images for user '{}'", userId);
             return;
         }
         Arrays.stream(files).forEach((f) -> {
             boolean result = f.delete();
-            logger.debug("Removing old image of user {}, {}: {}", userId, f.getAbsolutePath(), result);
+            log.debug("Removing old image of user {}, {}: {}", userId, f.getAbsolutePath(), result);
         });
     }
 
@@ -419,7 +419,7 @@ public class UpdateHandler {
         String sourceFilename = downloadedFile.getFilePath();
 
         String destFilename = fileUtils.getProfilePicturePath(userId, photoSize.getFileId());
-        logger.debug("Copying profile picture from {} to {}", sourceFilename, destFilename);
+        log.debug("Copying profile picture from {} to {}", sourceFilename, destFilename);
         fileUtils.moveFileAbsolute(sourceFilename, destFilename);
     }
 
@@ -685,7 +685,7 @@ public class UpdateHandler {
 
     public void userNotRegistered(Message message) throws TelegramApiException
     {
-        logger.trace("Sending not-registered warning reply to message {}", message);
+        log.trace("Sending not-registered warning reply to message {}", message);
         SendMessage notRegisteredMessage = new SendMessage();
         notRegisteredMessage.setChatId(message.getChatId());
         notRegisteredMessage.setText(SEND_START_FIRST);
@@ -710,7 +710,7 @@ public class UpdateHandler {
             followeeId = userService.getFolloweeByPullMessage(message.getReplyToMessage().getMessageId());
         }
         boolean isSubscriber =  userService.isSubscriber(followeeId, userId);
-        logger.debug("Trying to enable reply mode of {} to {}", followeeId, userId);
+        log.debug("Trying to enable reply mode of {} to {}", followeeId, userId);
         if (isSubscriber) {
             changeReplyMode(message, true, "");
         } else {
@@ -736,7 +736,7 @@ public class UpdateHandler {
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         boolean wasEnabled = userInfo.getReplyModeMessageId() != null;
 
-        logger.debug("WasEnabled: {}", wasEnabled);
+        log.debug("WasEnabled: {}", wasEnabled);
 
         if (enableReplyMode && wasEnabled) {
             replyModeMessageId = userInfo.getReplyModeMessageId();
@@ -746,7 +746,7 @@ public class UpdateHandler {
             replyModeFolloweeId = userService.getFolloweeByPullMessage(replyModeMessageId);
         }
 
-        logger.debug("replyModeFolloweeId: {}, replyMessageId: {}", replyModeFolloweeId, replyModeMessageId);
+        log.debug("replyModeFolloweeId: {}, replyMessageId: {}", replyModeFolloweeId, replyModeMessageId);
         userService.updateReplyEnabled(userId, replyModeFolloweeId, replyModeMessageId);
         userInfo.setReplyModeFolloweeId(replyModeFolloweeId);
         userInfo.setReplyModeMessageId(replyModeMessageId);
@@ -798,7 +798,7 @@ public class UpdateHandler {
         userService.updateFeedbackEnabled(userId, newState);
         UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
         if (userInfo == null) {
-            logger.warn("UserInfo is null", new RuntimeException());
+            log.warn("UserInfo is null", new RuntimeException());
         } else {
             userInfo.setFeedbackModeEnabled(newState);
         }
@@ -834,8 +834,7 @@ public class UpdateHandler {
                 String messageId = callbackQuery.getData().substring("remove_".length());
 
                 Long userId = callbackQuery.getFrom().getId();
-                logger.debug("Removing message by id: {}, user: {}", messageId, userId);
-                System.out.println("Removing message by id: " + messageId + ", user: " + userId);
+                log.debug("Removing message by id: {}, user: {}", messageId, userId);
 
                 removeFileFromServer(userId, messageId);
                 int updatedRows = userService.removeRecordByUserIdAndMessageId(userId, messageId);
@@ -958,7 +957,7 @@ public class UpdateHandler {
             boolean feedbackModeDisabled = false;
             UserInfo userInfo = tlm.get(ThreadLocalMap.KEY_USER_INFO);
             if (userInfo == null) {
-                logger.warn("User info is null", new RuntimeException());
+                log.warn("User info is null", new RuntimeException());
             } else {
                 userInfo.setFeedbackModeAllowed(feedbackAllowed);
                 if (!feedbackAllowed) {

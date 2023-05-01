@@ -222,7 +222,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     }
 
     public void onRegister() {
-        System.out.println("bot registered");
+
+        log.debug("bot registered");
     }
 
     private boolean checkRegistered(Message message) throws TelegramApiException, IOException {
