@@ -23,7 +23,7 @@ public class UserInfo {
     private String lastName;
 
     @Column(name = "time_zone")
-    private int timezone;
+    private Integer timezone;
     private boolean feedbackModeAllowed;
     private boolean feedbackModeEnabled;
     private Long replyModeFolloweeId;

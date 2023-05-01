@@ -61,8 +61,8 @@ public class ScheduledTaskService
         logger.info("announcements: " + announcements);
 
         announcements.forEach(a -> {
-            announcementsService.setPassedForAnnouncement(a.getId());
             announcementsService.runAnnouncementProcess(a);
+            announcementsService.setPassedForAnnouncement(a.getId());
         });
 
     }
