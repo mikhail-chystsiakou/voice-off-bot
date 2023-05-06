@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("api/v1/user")
+@RequestMapping("api/v1")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -22,12 +22,17 @@ public class UserController {
 
     private final Converter<UserInfo, UserDTO> userConverter;
 
-    @GetMapping("{userId}/followers")
+    @GetMapping("user/{userId}/followers")
     public List<UserDTO> getFollowers(@PathVariable Long userId) {
         return userService.getFollowers(userId).stream().map(userConverter::toDTO).collect(Collectors.toList());
     }
 
-    @GetMapping("{userId}/subscriptions")
+    @GetMapping("users")
+    public List<UserDTO> getUsers() {
+        return userService.getUsers().stream().map(userConverter::toDTO).collect(Collectors.toList());
+    }
+
+    @GetMapping("user/{userId}/subscriptions")
     public List<UserDTO> getSubscriptions(@PathVariable Long userId) {
         return userService.getSubscriptions(userId).stream().map(userConverter::toDTO).collect(Collectors.toList());
     }

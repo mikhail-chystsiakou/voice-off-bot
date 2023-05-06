@@ -176,6 +176,12 @@ public class UserServiceImpl implements org.example.service.UserService {
         return user.getFollowers().stream().map(Subscription::getUserInfo).collect(Collectors.toList());
     }
 
+    @Override
+    public List<UserInfo> getUsers()
+    {
+        return userRepository.findAll();
+    }
+
     public SendMessage getFollowers(Long userId, Long chatId) {
         SendMessage sm = new SendMessage();
         sm.setChatId(chatId);
