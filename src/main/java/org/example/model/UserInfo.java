@@ -17,7 +17,11 @@ import java.util.List;
 public class UserInfo {
     @Id
     private Long userId;
+
+    @Column(unique = true, nullable = false)
     private String chatId;
+
+    @Column(unique = true)
     private String username;
     private String firstName;
     private String lastName;

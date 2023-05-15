@@ -15,11 +15,6 @@ public class UserConverter implements Converter<UserInfo, UserDTO> {
                 .username(userDTO.getUsername())
                 .firstName(userDTO.getFirstName())
                 .lastName(userDTO.getLastName())
-                .timezone(userDTO.getTimezone())
-                .feedbackModeAllowed(userDTO.isFeedbackModeAllowed())
-                .feedbackModeEnabled(userDTO.isFeedbackModeEnabled())
-                .replyModeFolloweeId(userDTO.getReplyModeFolloweeId())
-                .replyModeMessageId(userDTO.getReplyModeMessageId())
                 .build();
     }
 
@@ -31,11 +26,6 @@ public class UserConverter implements Converter<UserInfo, UserDTO> {
                 .username(userInfo.getUsername())
                 .firstName(userInfo.getFirstName())
                 .lastName(userInfo.getLastName())
-                .timezone(userInfo.getTimezone())
-                .feedbackModeAllowed(userInfo.isFeedbackModeAllowed())
-                .feedbackModeEnabled(userInfo.isFeedbackModeEnabled())
-                .replyModeFolloweeId(userInfo.getReplyModeFolloweeId())
-                .replyModeMessageId(userInfo.getReplyModeMessageId())
                 .build();
     }
 }

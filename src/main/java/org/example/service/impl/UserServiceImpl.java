@@ -1,6 +1,7 @@
 package org.example.service.impl;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.example.config.BotConfig;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
@@ -8,6 +9,7 @@ import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.MessageType;
 import org.example.enums.Queries;
+import org.example.exception.EntityNotFoundException;
 import org.example.ffmpeg.FFMPEG;
 import org.example.ffmpeg.FFMPEGResult;
 import org.example.ffmpeg.FileInfo;
@@ -47,10 +49,12 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.example.constant.ExceptionMessageConstant.ENTITY_BY_ID_IS_NOT_FOUND;
 import static org.example.enums.Queries.*;
 import static org.example.util.ThreadLocalMap.*;
 
 @Service
+@NoArgsConstructor
 public class UserServiceImpl implements org.example.service.UserService {
     public static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
     private static final String VIRTUAL_TIMESTAMP_PATTERN = "yyyyMMddHHmmssSSS";
@@ -58,9 +62,6 @@ public class UserServiceImpl implements org.example.service.UserService {
 
     @Autowired
     FileUtils fileUtils;
-
-    @Autowired
-    BotConfig botConfig;
 
     @Autowired
     FFMPEG ffmpeg;
@@ -90,6 +91,10 @@ public class UserServiceImpl implements org.example.service.UserService {
     @Autowired
     NumberToEmoji numberToEmoji;
 
+    public UserInfo addUser(UserInfo userInfo) {
+        return userRepository.save(userInfo);
+    }
+
     public int addUser(Long userId, Long chatId, String userName, String firstName, String lastName){
         return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, firstName, lastName, chatId);
     }
@@ -107,8 +112,9 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
     @Override
-    public UserInfo getUserById(Long userId) {
-        return userRepository.findById(userId).orElse(null);
+    public UserInfo getUserById(Long userId) throws EntityNotFoundException {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException(String.format(ENTITY_BY_ID_IS_NOT_FOUND, "User", userId)));
     }
 
     public Long getUserIdById(Long userId) {
@@ -170,7 +176,7 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
     @Override
-    public List<UserInfo> getFollowers(Long userId) {
+    public List<UserInfo> getFollowers(Long userId) throws EntityNotFoundException {
         UserInfo user = getUserById(userId);
         return user.getFollowers().stream().map(Subscription::getUserInfo).collect(Collectors.toList());
     }
@@ -211,7 +217,7 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
     @Override
-    public List<UserInfo> getSubscriptions(Long userId) {
+    public List<UserInfo> getSubscriptions(Long userId) throws EntityNotFoundException {
         return getUserById(userId).getSubscriptions().stream().map(Subscription::getFollowee).collect(Collectors.toList());
     }
 
