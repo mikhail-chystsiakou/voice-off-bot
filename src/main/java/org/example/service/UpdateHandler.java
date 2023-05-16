@@ -896,10 +896,11 @@ public class UpdateHandler {
     public void setSettings(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
         // show location
         Message message = callbackQuery.getMessage();
-        if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_6")) {
+        if (callback.equals(SETTING_TIMEZONE) || callback.equals(SETTING_TIMEZONE + "_7")) {
+            System.out.println("callback : " + callback);
             EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
             emrm.setMessageId(message.getMessageId());
-            emrm.setReplyMarkup(buttonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_6")));
+            emrm.setReplyMarkup(buttonsService.getTimezonesButtons(callback.equals(SETTING_TIMEZONE + "_7")));
             emrm.setChatId(message.getChatId());
             executeFunction.execute(emrm);
         } else if (callback.startsWith(SETTING_TIMEZONE)) {
@@ -1154,6 +1155,18 @@ public class UpdateHandler {
         }
         else if (stage == 5)
         {
+            sendVideo.setCaption("Use *Reply Mode*! You can record \uD83C\uDFA4 replies on audios during the listening\n" +
+                                     "The author will get all your replies on next pull \uD83D\uDCE2\n" +
+                                     "\n" +
+                                     "P.S. You can even record replies on replies \uD83D\uDE0F");
+            sendVideo.setVideo(new InputFile(new File("/mnt/bewired/resources/BeWired5.mp4")));
+            sendVideo.setReplyMarkup(buttonsService.getNextButton(stage));
+            sendVideo.setParseMode("Markdown");
+
+            sendVideoFunction.execute(sendVideo);
+        }
+        else if (stage == 6)
+        {
             SendMessage lastStep = new SendMessage();
             lastStep.setText("*Setup your timezone* \uD83C\uDF0E for proper date and time handling. " +
                     "You can change it later via /settings command \uD83D\uDEE0");
@@ -1162,7 +1175,7 @@ public class UpdateHandler {
             lastStep.setReplyMarkup(buttonsService.getTimezoneMarkup(stage));
             executeFunction.execute(lastStep);
         }
-        else if (stage == 6) {
+        else if (stage == 7) {
 
             SendMessage sendMessage = new SendMessage();
 

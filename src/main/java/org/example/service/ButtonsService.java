@@ -235,8 +235,8 @@ public class ButtonsService
     public ReplyKeyboard getNextButton(int stage)
     {
         InlineKeyboardButton approveButton = new InlineKeyboardButton();
-        approveButton.setText("Next \uD83C\uDFC3 (" + stage + "/4)");
-        if (stage == 4) {
+        approveButton.setText("Next \uD83C\uDFC3 (" + stage + "/5)");
+        if (stage == 5) {
             approveButton.setText("Finish \uD83C\uDFC1");
         }
         approveButton.setCallbackData("isTutorial_" + ++stage);
@@ -295,16 +295,20 @@ public class ButtonsService
         utc0800.setText("+08:00");
         utc0800.setCallbackData("settings_timezone_0800" + (finish ? "f" : ""));
 
-        InlineKeyboardButton previousMenuButton = new InlineKeyboardButton();
-        previousMenuButton.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
-        previousMenuButton.setCallbackData(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(Arrays.asList(
-                Arrays.asList(utc0000, utc0100, utc0200, utc0300),
-                Arrays.asList(utc0500, utc0600, utc0700, utc0800),
-                Arrays.asList(previousMenuButton)
-        ));
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        keyboard.add(Arrays.asList(utc0000, utc0100, utc0200, utc0300));
+        keyboard.add(Arrays.asList(utc0500, utc0600, utc0700, utc0800));
+        inlineKeyboardMarkup.setKeyboard(keyboard);
+
+        if (!finish){
+            InlineKeyboardButton previousMenuButton = new InlineKeyboardButton();
+            previousMenuButton.setText(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+            previousMenuButton.setCallbackData(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription());
+
+            inlineKeyboardMarkup.getKeyboard().add(Arrays.asList(previousMenuButton));
+        }
         return inlineKeyboardMarkup;
     }
 //
