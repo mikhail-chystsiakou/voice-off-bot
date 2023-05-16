@@ -9,5 +9,7 @@ public interface UserService {
 
     List<UserInfo> getFollowers(Long userId);
 
+    List<UserInfo> getUsers();
+
     List<UserInfo> getSubscriptions(Long userId);
 }
