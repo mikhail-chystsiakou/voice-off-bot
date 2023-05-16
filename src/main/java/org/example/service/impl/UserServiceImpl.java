@@ -112,7 +112,7 @@ public class UserServiceImpl implements org.example.service.UserService {
         return userRepository.findById(userId).orElse(null);
     }
 
-    public Long getUserIdById(Long userId){
+    public Long getUserIdById(Long userId) {
         return jdbcTemplate.query(Queries.GET_USER_BY_ID.getValue(), new Object[]{userId}, new UserMapper())
             .stream().findFirst().map(UserDAO::getId).orElse(null);
     }

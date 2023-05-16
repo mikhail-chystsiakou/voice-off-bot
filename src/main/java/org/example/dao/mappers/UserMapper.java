@@ -11,8 +11,6 @@ public class UserMapper implements RowMapper<UserDAO>
     @Override
     public UserDAO mapRow(ResultSet rs, int rowNum) throws SQLException
     {
-        UserDAO userDAO = new UserDAO();
-        userDAO.setId(rs.getLong(1));
-        return userDAO;
+        return new UserDAO(rs.getLong(1));
     }
 }
