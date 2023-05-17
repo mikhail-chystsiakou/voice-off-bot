@@ -145,7 +145,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.returnMainMenu(message);
                 }
                 else if (BotCommands.TUTORIAL.getCommand().equals(inputMessage)) {
-                    updateHandler.getTutorial(message.getChatId(), 1);
+                    updateHandler.getTutorial(message.getChatId(), 1, message.getFrom().getId());
                 }
                 else if (BotCommands.SETTINGS.getCommand().equals(inputMessage)) {
                     updateHandler.getSettings(message);
@@ -191,7 +191,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 updateHandler.handleConfirmation(update.getCallbackQuery());
             }
             if (answer.contains("declineTutorial")){
-                updateHandler.declineTutorial(update.getCallbackQuery().getMessage().getChatId());
+                updateHandler.declineTutorial(update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getFrom().getId());
             }
             if (answer.contains("settings")){
                 updateHandler.setSettings(update.getCallbackQuery(), answer);
@@ -203,10 +203,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 updateHandler.removeRecording(update.getCallbackQuery());
             }
             if (answer.contains("isTutorial")){
-                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), Integer.parseInt(answer.split("_")[1]));
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), Integer.parseInt(answer.split("_")[1]), update.getCallbackQuery().getFrom().getId());
             }
             if (answer.equals("declineTimezone"))            {
-                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), 7);
+                updateHandler.getTutorial(update.getCallbackQuery().getMessage().getChatId(), 7, update.getCallbackQuery().getFrom().getId());
             }
             if (answer.equals(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription()))
             {

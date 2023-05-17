@@ -11,8 +11,6 @@ import org.example.repository.UserRepository;
 import org.example.service.impl.UserServiceImpl;
 import org.example.storage.FileStorage;
 import org.example.util.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -920,7 +918,7 @@ public class UpdateHandler {
                 SendMessage sendMessage = new SendMessage();
 
                 sendMessage.setChatId(message.getChatId());
-                sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. ");
+                sendMessage.setText("*Congratulations, you are ready to go!* \n\nShare yourself. It's valuable 🤗. \n" + getTextForSubscriptionsSuggestions(callbackQuery.getFrom().getId()));
                 sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
                 sendMessage.setParseMode("Markdown");
 
@@ -1109,7 +1107,7 @@ public class UpdateHandler {
         return tz;
     }
 
-    public void getTutorial(long chatId, int stage) throws TelegramApiException
+    public void getTutorial(long chatId, int stage, long userId) throws TelegramApiException
     {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
@@ -1180,7 +1178,7 @@ public class UpdateHandler {
             SendMessage sendMessage = new SendMessage();
 
             sendMessage.setChatId(chatId);
-            sendMessage.setText("*Congratulations, you are ready to go!* ⛷ \n\nShare yourself. It's valuable 🤗. ");
+            sendMessage.setText("*Congratulations, you are ready to go!* ⛷ \n\nShare yourself. It's valuable 🤗. \n" + getTextForSubscriptionsSuggestions(userId));
             sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
             sendMessage.setParseMode("Markdown");
 
@@ -1188,7 +1186,7 @@ public class UpdateHandler {
         }
     }
 
-    public void declineTutorial(long chatId) throws TelegramApiException
+    public void declineTutorial(long chatId, long userId) throws TelegramApiException
     {
         MessageEntity messageEntity = new MessageEntity();
         messageEntity.setType("bot_command");
@@ -1199,9 +1197,15 @@ public class UpdateHandler {
         sendMessage.setChatId(chatId);
         sendMessage.setEntities(Arrays.asList(messageEntity));
         sendMessage.setText("Ok, you can go through the tutorial whenever you want using the /tutorial command \uD83D\uDEE0." +
-                " For now you are ready to go! ⛷\n\nShare yourself. It's valuable 🤗. ");
+                " For now you are ready to go! ⛷\n\nShare yourself. It's valuable 🤗. \n" + getTextForSubscriptionsSuggestions(userId));
         sendMessage.setReplyMarkup(buttonsService.getInitMenuButtons());
         executeFunction.execute(sendMessage);
+    }
+
+    private String getTextForSubscriptionsSuggestions(long userId){
+        return "You can subscribe on the most active users: \n" + userService.getListOfTheMostActiveUsers(userId).stream()
+            .map(name -> "@" + name)
+            .collect(Collectors.joining("\n"));
     }
 
     public void confirmRemovingRecording(CallbackQuery callbackQuery) throws TelegramApiException

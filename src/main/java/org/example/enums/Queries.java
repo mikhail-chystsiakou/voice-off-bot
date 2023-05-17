@@ -122,7 +122,15 @@ public enum Queries
                           "where an.announcement_id = anf.announcement_id" +
                                " and an.announcement_date < current_timestamp" +
                                " and an.is_passed = 0"),
-    SET_PASSED_TO_ANNOUNCEMENT("update announcements set is_passed = 1 where announcement_id = ?");
+    SET_PASSED_TO_ANNOUNCEMENT("update announcements set is_passed = 1 where announcement_id = ?"),
+    GET_THE_MOST_ACTIVE_USERS("select u.username, aud.user_id, max(aud.recording_timestamp) \n" +
+                                  "from user_audios aud, users u\n" +
+                                  "where u.user_id = aud.user_id\n" +
+                                  "and u.username is not null\n" +
+                                  "and aud.user_id != ?\n" +
+                                  "group by aud.user_id, u.username \n" +
+                                  "order by max(aud.recording_timestamp) desc\n" +
+                                  "limit 5");
 
     String value;
 

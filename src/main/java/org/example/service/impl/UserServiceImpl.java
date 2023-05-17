@@ -409,6 +409,16 @@ public class UserServiceImpl implements org.example.service.UserService {
         jdbcTemplate.update(Queries.DELETE_NOTIFICATIONS.getValue());
     }
 
+    public List<String> getListOfTheMostActiveUsers(long userId)
+    {
+        List<String> result = jdbcTemplate.queryForStream(
+            Queries.GET_THE_MOST_ACTIVE_USERS.getValue(),
+            (rs, rn) -> rs.getString("username"),
+            userId
+        ).collect(Collectors.toList());
+        return result;
+    }
+
     @Data
     private static class FolloweePullTimestamp {
         long followeeId;
