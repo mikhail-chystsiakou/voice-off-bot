@@ -62,4 +62,8 @@ public class BotCreationConfig {
     SendVideoFunction extractSendVideoFunction(MyTelegramBot bot) {
         return bot::execute;
     }
+    @Bean
+    SendImgFunction extractSendImgFunction(MyTelegramBot bot) {
+        return bot::execute;
+    }
 }

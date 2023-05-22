@@ -5,11 +5,13 @@ import org.example.enums.FileTypes;
 import org.example.enums.Queries;
 import org.example.model.AnnouncementInfo;
 import org.example.util.ExecuteFunction;
+import org.example.util.SendImgFunction;
 import org.example.util.SendVideoFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -39,6 +41,10 @@ public class AnnouncementsService
     @Autowired
     @Lazy
     SendVideoFunction sendVideoFunction;
+
+    @Autowired
+    @Lazy
+    SendImgFunction sendImgFunction;
 
     public List<AnnouncementInfo> getAnnouncements()
     {
@@ -103,34 +109,56 @@ public class AnnouncementsService
         log.info("announcement with id: " + announcementInfo.getId() + ". isAnnouncementExists: " + isAnnouncementExists);
 
         if (isAnnouncementExists){
-            SendVideo sendVideo = null;
+
+            List<Long> chatIds = jdbcTemplate.queryForList("DELETE FROM announcement_" + announcementInfo.getId() + "_temp where chat_id in (select chat_id from announcement_" + announcementInfo.getId() + "_temp limit 10) RETURNING chat_id", Long.class);
 
             if (announcementInfo.getVideoIds() != null)
             {
-                sendVideo = new SendVideo();
+                SendVideo sendVideo = new SendVideo();
 
                 sendVideo.setCaption(announcementInfo.getText());
                 sendVideo.setVideo(new InputFile(new File(announcementInfo.getVideoIds().get(0))));
                 sendVideo.setParseMode("Markdown");
+
+                chatIds.forEach(chatId -> {
+                    if (sendVideo != null)
+                    {
+                        sendVideo.setChatId(chatId);
+
+                        try
+                        {
+                            sendVideoFunction.execute(sendVideo);
+                        }
+                        catch (TelegramApiException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                });
             }
+            if (announcementInfo.getImgIds() != null)
+            {
+                SendPhoto sendPhoto = new SendPhoto();
+                sendPhoto.setCaption(announcementInfo.getText());
+                sendPhoto.setPhoto(new InputFile(new File(announcementInfo.getImgIds().get(0))));
+                sendPhoto.setParseMode("Markdown");
 
-            List<Long> chatIds = jdbcTemplate.queryForList("DELETE FROM announcement_" + announcementInfo.getId() + "_temp where chat_id in (select chat_id from announcement_" + announcementInfo.getId() + "_temp limit 10) RETURNING chat_id", Long.class);
-            SendVideo finalSendVideo = sendVideo;
-            chatIds.forEach(chatId -> {
-                if (finalSendVideo != null)
-                {
-                    finalSendVideo.setChatId(chatId);
+                chatIds.forEach(chatId -> {
+                    if (sendPhoto != null)
+                    {
+                        sendPhoto.setChatId(chatId);
 
-                    try
-                    {
-                        sendVideoFunction.execute(finalSendVideo);
+                        try
+                        {
+                            sendImgFunction.execute(sendPhoto);
+                        }
+                        catch (TelegramApiException e)
+                        {
+                            e.printStackTrace();
+                        }
                     }
-                    catch (TelegramApiException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
-            });
+                });
+            }
 
             ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
             executor.schedule(() -> sentAnnouncements(announcementInfo), 1000, TimeUnit.MILLISECONDS);
