@@ -420,7 +420,7 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
     @Data
-    private static class FolloweePullTimestamp {
+    public static class FolloweePullTimestamp {
         long followeeId;
         long lastPullTimestamp;
     }
