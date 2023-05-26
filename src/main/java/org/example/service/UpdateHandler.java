@@ -456,7 +456,7 @@ public class UpdateHandler {
         return message.getFrom().getFirstName();
     }
 
-    public void pull(Message message) throws TelegramApiException, IOException
+    public void pull(Message message) throws TelegramApiException
     {
         long userId = message.getFrom().getId();
         if (!pullProcessingSet.getAndSetPullProcessingForUser(userId)) {
@@ -466,27 +466,27 @@ public class UpdateHandler {
         statsService.init();
         statsService.pullStart();
         statsService.setUserId(userId);
+
         redownloadUserPhoto(userId);
         changeUserName(message.getFrom());
-        if (!userService.isDataAvailable(userId))
-        {
+
+        if (!userService.isDataAvailable(userId)){
             executeFunction.execute(new SendMessage(message.getChatId().toString(), "No updates \uD83E\uDD7A"));
-        }else {
+        }
+        else{
             executeFunction.execute(new SendMessage(message.getChatId().toString(), "Preparing audios for you \uD83E\uDD17..."));
-            List<SendAudio> records = userService.pullAllRecordsForUser(userId, message.getChatId());
-            records.forEach(record -> {
-                try
-                {
-                    statsService.pullEndBeforeUpload();
-                    Message pullMessage = sendAudioFunction.execute(record);
-                    storePullMessage(pullMessage);
-                    userService.cleanup(record);
-                }
-                catch (TelegramApiException e)
-                {
-                    e.printStackTrace();
-                }
-            });
+            SendAudio record = userService.pullRecordForUser(userId, message.getChatId());
+            try
+            {
+                statsService.pullEndBeforeUpload();
+                Message pullMessage = sendAudioFunction.execute(record);
+                storePullMessage(pullMessage);
+                userService.cleanup(record.getFile().getNewMediaFile().getAbsolutePath());
+            }
+            catch (TelegramApiException e)
+            {
+                e.printStackTrace();
+            }
             if (userService.isDataAvailable(message.getFrom().getId())) {
                 executeFunction.execute(new SendMessage(message.getChatId().toString(), "More audios available \uD83D\uDE0F..."));
             }
@@ -986,25 +986,34 @@ public class UpdateHandler {
 
     public void showHideTimestamps(CallbackQuery callbackQuery, String callback) throws TelegramApiException {
         Message message = callbackQuery.getMessage();
+        String[] data = callbackQuery.getData().split("_");
+        System.out.println("callback data: " + callbackQuery.getData());
+
+        long followeeId = data.length == 3 ? Long.parseLong(data[2]) : 0;
+        System.out.println("new f: " + followeeId);
 
         EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setMessageId(message.getMessageId());
-        emrm.setReplyMarkup(buttonsService.getShowTimestampsButton());
+        emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId));
         emrm.setChatId(message.getChatId());
 
         EditMessageCaption emc = new EditMessageCaption();
         emc.setChatId(message.getChatId());
         emc.setMessageId(message.getMessageId());
 
-        if (callback.equals("timestamps_show")) {
+        if (callback.startsWith("timestamps_show")) {
             long userId = callbackQuery.getFrom().getId();
             UserInfo userInfo = userRepository.findById(userId).get();
             System.out.println("callback date: " + callbackQuery.getMessage().getDate());
             long audioMessageTime = callbackQuery.getMessage().getDate() * 1000L;
             // 2104732264000
             System.out.println("prev date: " + new Timestamp(audioMessageTime) + " - " + audioMessageTime);
-            Triplet<Long, Long, Long> getPullTimestamps = getPreviousPullTimestamp(userId, audioMessageTime);
+            System.out.println("userId: " + userId);
+            Triplet<Long, Long, Long> getPullTimestamps = followeeId == 0 ? getPreviousPullTimestamp(userId, audioMessageTime) : getPreviousPullTimestampByFolloweeId(userId, followeeId, audioMessageTime) ;
 
+            System.out.println("followee_id: " + getPullTimestamps.getFirst());
+            System.out.println("pull_timestamp: " + getPullTimestamps.getSecond());
+            System.out.println("last_pull_timestamp: " + getPullTimestamps.getThird());
             // +1s because time is truncated
             List<VoicePart> voiceParts = loadVoiceParts(
                     getPullTimestamps.getFirst(),
@@ -1021,14 +1030,29 @@ public class UpdateHandler {
 
             emc.setCaption(caption);
             emc.setParseMode("Markdown");
-            emrm.setReplyMarkup(buttonsService.getHideTimestampsButton());
+            emrm.setReplyMarkup(buttonsService.getHideTimestampsButton(followeeId));
 
-        } else if (callback.equals("timestamps_hide")) {
+        } else if (callback.startsWith("timestamps_hide")) {
             emc.setCaption("");
-            emrm.setReplyMarkup(buttonsService.getShowTimestampsButton());
+            emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId));
         }
         executeFunction.execute(emc);
         executeFunction.execute(emrm);
+    }
+
+    private Triplet<Long, Long, Long> getPreviousPullTimestampByFolloweeId(long userId, long followeeId, long nextTimestamp)
+    {
+        return jdbcTemplate.query(GET_PREVIOUS_PULL_TIMESTAMP_BY_FOLLOWEE.getValue(),
+                                  (rs) -> {
+                                      Triplet<Long, Long, Long> triplet = new Triplet<>();
+                                      if (rs.next())
+                                      {
+                                          triplet.setFirst(rs.getLong("followee_id"));
+                                          triplet.setSecond(rs.getTimestamp("pull_timestamp").getTime());
+                                          triplet.setThird(rs.getTimestamp("last_pull_timestamp").getTime());
+                                      }
+                                      return triplet;
+                                  }, new Timestamp(nextTimestamp), userId, followeeId);
     }
 
     private Triplet<Long, Long, Long> getPreviousPullTimestamp(long userId, long nextTimestamp) {

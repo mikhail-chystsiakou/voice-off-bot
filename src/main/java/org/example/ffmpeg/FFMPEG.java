@@ -3,6 +3,7 @@ package org.example.ffmpeg;
 import org.example.config.BotConfig;
 import org.example.config.Config;
 import org.example.enums.MessageType;
+import org.example.enums.Queries;
 import org.example.storage.FileStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,11 +51,11 @@ public class FFMPEG {
         String osName = System.getProperty("os.name");
     }
 
-    public FFMPEGResult produceFiles(MessageType type, long userId, long from, long to, Long replyFolloweeId) {
-        logger.debug("FFMPEG called with params: {}, {}, {}, {}, {}", type, userId, from, to, replyFolloweeId);
+    public FFMPEGResult produceFiles(MessageType type, long userId, long from, Long replyFolloweeId) {
+        logger.debug("FFMPEG called with params: {}, {}, {}, {}", type, userId, from, replyFolloweeId);
         String tempStoragePath = botConfig.getStoragePath() + botConfig.getTmpPath() + File.separator;
 
-        VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, to);
+        VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, System.currentTimeMillis());
         if (MessageType.REPLY.equals(type)) {
             virtualFileInfo.setReplyFolloweeId(replyFolloweeId);
         }
@@ -71,19 +72,26 @@ public class FFMPEG {
             throw new RuntimeException(e);
         }
         String audioAuthor = getAudioAuthor(virtualFileInfo);
-        String audioTitle = getAudioTitle(type, virtualFileInfo);
+        String audioTitle = getAudioTitle(userId, type, virtualFileInfo);
         String command = MessageFormat.format(COMMAND_PATTERN, listFile, audioAuthor, audioTitle, outputFile);
         logger.debug(command);
         try {
             execFFMPEG(command);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
 
         return new FFMPEGResult(outputFile, listFile, audioAuthor, audioTitle, lastFileRecordingTimestamp);
+    }
 
+    private long getUserTo(long userId)
+    {
+        return Objects.requireNonNull(jdbcTemplate.queryForObject(Queries.GET_USER_AUDIO_TO.getValue(), new Object[]{userId}, Timestamp.class)).getTime();
+    }
+
+    private long getUserFrom(long userId, long from)
+    {
+        return Objects.requireNonNull(jdbcTemplate.queryForObject(Queries.GET_USER_AUDIO_FROM.getValue(), new Object[]{userId, new Timestamp(from)}, Timestamp.class)).getTime();
     }
 
     private String getAudioAuthor(VirtualFileInfo vfi) {
@@ -103,16 +111,20 @@ public class FFMPEG {
         return audioAuthor;
     }
 
-    private String getAudioTitle(MessageType type, VirtualFileInfo vfi) {
+    private String getAudioTitle(long userId, MessageType type, VirtualFileInfo vfi) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String from = sdf.format(new Date(vfi.getDateFrom()));
-        String to = sdf.format(new Date(vfi.getDateFrom()));
-        String title = "Diary from " + from;
+
+        long from = getUserFrom(userId, vfi.getDateFrom());
+        long to = getUserTo(userId);
+
+        String fromStr = sdf.format(new Date(from));
+        String toStr = sdf.format(new Date(to));
+        String title = "Diary from " + fromStr;
         if (MessageType.REPLY.equals(type)) {
-            title = "Reply from " + from;
+            title = "Reply from " + fromStr;
         }
-        if (!to.equals(from)) title += "to " + to;
+        if (!toStr.equals(fromStr)) title += "to " + toStr;
 
         return title;
     }

@@ -34,7 +34,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -460,14 +459,14 @@ public class UserServiceImpl implements org.example.service.UserService {
         return voicesPresent;
     }
 
-    public List<SendAudio> pullAllRecordsForUser(Long userId, Long chatId)
+    public SendAudio pullRecordForUser(Long userId, Long chatId)
     {
-        List<SendAudio> replies = pullAudios(true, userId, chatId);
-        if (!replies.isEmpty()) return replies;
-        return pullAudios(false, userId, chatId);
+        SendAudio reply = pullAudio(true, userId, chatId);
+        if (reply != null) return reply;
+        return pullAudio(false, userId, chatId);
     }
 
-    private List<SendAudio> pullAudios(boolean pullReplies, Long userId, Long chatId){
+    private SendAudio pullAudio(boolean pullReplies, Long userId, Long chatId){
         long nextPullTimestamp = System.currentTimeMillis();
         Queries query = Queries.GET_LAST_PULL_TIME;
         if (pullReplies) {
@@ -478,7 +477,7 @@ public class UserServiceImpl implements org.example.service.UserService {
         }
         // list of followees with their last pull timestamps
         // only followees with available recordings selected
-        List<FolloweePullTimestamp> followeesPullTimestamps = jdbcTemplate.queryForStream(
+        FolloweePullTimestamp followeePullTimestamps = jdbcTemplate.queryForStream(
                 query.getValue(),
                 (rs, rn) -> {
                     FolloweePullTimestamp obj = new FolloweePullTimestamp();
@@ -488,52 +487,53 @@ public class UserServiceImpl implements org.example.service.UserService {
                     return obj;
                 },
                 userId
-        ).collect(Collectors.toList());
+        ).findFirst().orElse(null);
 
         logger.debug("pullAudios(pullReplies:{}, userId: {}, chatId: {}) result: {}, query: {}",
-                pullReplies, userId, chatId, followeesPullTimestamps, query.getValue()
+                pullReplies, userId, chatId, followeePullTimestamps, query.getValue()
         );
 
-        List<SendAudio> voices = new ArrayList<>(followeesPullTimestamps.size());
-        Long pullMessageId = null;
-        Long followeeId = null;
-        String origMessageIds = null;
+        String origMessageIds;
 
-        for (FolloweePullTimestamp fpt : followeesPullTimestamps) {
-            System.out.println(fpt);
-            statsService.setFolloweeId(fpt.followeeId);
-            statsService.setLastPullTimestamp(fpt.lastPullTimestamp);
+        if (followeePullTimestamps != null){
+            System.out.println(followeePullTimestamps);
+            statsService.setFolloweeId(followeePullTimestamps.followeeId);
+            statsService.setLastPullTimestamp(followeePullTimestamps.lastPullTimestamp);
 
             // collect recordings
             MessageType type = MessageType.DATA;
-            if (pullReplies) {
+            if (pullReplies)
+            {
                 type = MessageType.REPLY;
             }
             FFMPEGResult localFile = ffmpeg.produceFiles(type,
-                    fpt.followeeId,
-                    fpt.lastPullTimestamp, nextPullTimestamp,
-                    userId
+                                                         followeePullTimestamps.followeeId,
+                                                         followeePullTimestamps.lastPullTimestamp,
+                                                         userId
             );
             logger.debug("ffmpeg.produceFiles({}, {}, {}, {}, {}): localFile: {}",
-                    type,
-                    fpt.followeeId,
-                    fpt.lastPullTimestamp, nextPullTimestamp,
-                    userId,
-                    localFile
+                         type,
+                         followeePullTimestamps.followeeId,
+                         followeePullTimestamps.lastPullTimestamp, nextPullTimestamp,
+                         userId,
+                         localFile
             );
             long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
             statsService.setPullTimestamp(lastFileRecordingTimestamp);
-            if (pullReplies) {
-                System.out.println("setting timestamp for replies on " + fpt.followeeId + "-" + userId);
-                jdbcTemplate.update(REMOVE_REPLY_PULL_TIMESTAMP.getValue(), userId, fpt.followeeId);
+            if (pullReplies)
+            {
+                System.out.println("setting timestamp for replies on " + followeePullTimestamps.followeeId + "-" + userId);
+                jdbcTemplate.update(REMOVE_REPLY_PULL_TIMESTAMP.getValue(), userId, followeePullTimestamps.followeeId);
                 jdbcTemplate.update(ADD_REPLY_PULL_TIMESTAMP.getValue(),
-                        new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
+                                    new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
                 );
-            } else {
+            }
+            else
+            {
                 jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
-                        new Timestamp(lastFileRecordingTimestamp), userId, fpt.followeeId
+                                    new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
                 );
-                System.out.println("setting timestamp for data on " + fpt.followeeId + "-" + userId);
+                System.out.println("setting timestamp for data on " + followeePullTimestamps.followeeId + "-" + userId);
             }
 
             SendAudio sendAudio = new SendAudio();
@@ -541,34 +541,43 @@ public class UserServiceImpl implements org.example.service.UserService {
 
             // todo OH MY GOD sql inside loop inside synchronized -_-
             List<VoicePart> voiceParts = Collections.emptyList();
-            synchronized (this) {
-                voiceParts = getVoiceParts(fpt.followeeId,
-                        pullReplies ? userId : null,
-                        fpt.lastPullTimestamp,
-                        lastFileRecordingTimestamp);
+            synchronized (this)
+            {
+                voiceParts = getVoiceParts(followeePullTimestamps.followeeId,
+                                           pullReplies ? userId : null,
+                                           followeePullTimestamps.lastPullTimestamp,
+                                           lastFileRecordingTimestamp);
 
                 System.out.println(Arrays.asList(voiceParts.toArray()));
-                for (VoicePart vp : voiceParts) {
+                for (VoicePart vp : voiceParts)
+                {
                     vp.setPullCount(vp.getPullCount() + 1);
-                    jdbcTemplate.update(SET_PULL_COUNT.getValue(), vp.getPullCount(), fpt.followeeId, vp.messageId);
+                    jdbcTemplate.update(SET_PULL_COUNT.getValue(), vp.getPullCount(), followeePullTimestamps.followeeId, vp.messageId);
                     // update messages
-                    System.out.println("updating message id " + vp.messageId + " of " + fpt.followeeId + " to pull count " + vp.getPullCount());
+                    System.out.println("updating message id " + vp.messageId + " of " + followeePullTimestamps.followeeId + " to pull count " + vp.getPullCount());
                     Integer followeeOkMessageId = jdbcTemplate.queryForObject(GET_OK_MESSAGE_ID.getValue(),
-                            new Object[] { fpt.followeeId, vp.messageId },
-                            Integer.class);
-                    if (followeeOkMessageId != null) {
+                                                                              new Object[]{followeePullTimestamps.followeeId, vp.messageId},
+                                                                              Integer.class);
+                    if (followeeOkMessageId != null)
+                    {
                         EditMessageText emt = new EditMessageText();
-                        emt.setChatId(fpt.followeeId);
-                        if (vp.getPullCount() == 1) {
+                        emt.setChatId(followeePullTimestamps.followeeId);
+                        if (vp.getPullCount() == 1)
+                        {
                             emt.setText("Recording was pulled " + numberToEmoji.toEmoji(1) + " time");
-                        } else {
+                        }
+                        else
+                        {
                             emt.setText("Recording was pulled " + numberToEmoji.toEmoji(vp.getPullCount()) + " times");
                         }
                         emt.setMessageId(followeeOkMessageId);
-                        emt.setReplyMarkup(buttonsService.getButtonForDeletingRecord((int)vp.messageId));
-                        try {
+                        emt.setReplyMarkup(buttonsService.getButtonForDeletingRecord((int) vp.messageId));
+                        try
+                        {
                             executeFunction.execute(emt);
-                        } catch (TelegramApiException e) {
+                        }
+                        catch (TelegramApiException e)
+                        {
                             throw new RuntimeException(e);
                         }
                     }
@@ -579,9 +588,12 @@ public class UserServiceImpl implements org.example.service.UserService {
 
             Path filePath = Paths.get(localFile.getAbsoluteFileURL());
             long fileSize = 0;
-            try {
+            try
+            {
                 fileSize = Files.size(filePath);
-            } catch (IOException e) {
+            }
+            catch (IOException e)
+            {
                 e.printStackTrace();
             }
             System.out.println("setting pull file size " + fileSize);
@@ -591,44 +603,46 @@ public class UserServiceImpl implements org.example.service.UserService {
             sendAudio.setAudio(in);
             int duration = 0;
             StringJoiner sj = new StringJoiner(",");
-            for (VoicePart vp : voiceParts) {
+            for (VoicePart vp : voiceParts)
+            {
                 duration += vp.duration;
                 sj.add(String.valueOf(vp.getMessageId()));
             }
             logger.debug("total duration: {}", duration);
             origMessageIds = sj.toString();
             tlm.put(KEY_ORIG_MESSAGE_IDS, origMessageIds);
-            tlm.put(KEY_FOLLOWEE_ID, fpt.followeeId);
+            tlm.put(KEY_FOLLOWEE_ID, followeePullTimestamps.followeeId);
             sendAudio.setDuration(duration);
             sendAudio.setTitle(localFile.getAudioTitle());
             sendAudio.setChatId(chatId);
             sendAudio.setPerformer(localFile.getAudioAuthor());
             System.out.println("Deciding whether to show timestamps button");
             System.out.println("parts size: " + voiceParts.size());
-            if (voiceParts.size() > 0) {
+            if (voiceParts.size() > 0)
+            {
                 System.out.println("First part desc: '" + voiceParts.get(0).getDescription() + "'");
             }
             if (voiceParts.size() > 1
-                    || (voiceParts.size() == 1
-                    && !ObjectUtils.isEmpty(voiceParts.get(0).getDescription()))
-                    && !"null".equals(voiceParts.get(0).getDescription())
-            ) {
+                || (voiceParts.size() == 1
+                && !ObjectUtils.isEmpty(voiceParts.get(0).getDescription()))
+                && !"null".equals(voiceParts.get(0).getDescription())
+            )
+            {
                 System.out.println("hmm it's description");
-                sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton());
+                sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton(followeePullTimestamps.getFolloweeId()));
             }
-            String profilePicture = fileUtils.getProfilePicturePath(fpt.followeeId);
-            if (profilePicture !=null) {
+            String profilePicture = fileUtils.getProfilePicturePath(followeePullTimestamps.followeeId);
+            if (profilePicture != null)
+            {
                 sendAudio.setThumb(new InputFile(new File(profilePicture), "cover"));
             }
-            System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + fpt.followeeId);
-            voices.add(sendAudio);
+            System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + followeePullTimestamps.followeeId);
+            return sendAudio;
         }
-
-        return voices;
+        return null;
     }
 
-    public void cleanup(SendAudio sendAudio) {
-        String filePath = sendAudio.getFile().getNewMediaFile().getAbsolutePath();
+    public void cleanup(String filePath) {
         try {
             System.out.println("Deleting temp path: " + filePath);
             Files.delete(Path.of(filePath));

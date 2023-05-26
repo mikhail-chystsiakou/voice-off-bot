@@ -130,7 +130,17 @@ public enum Queries
                                   "and aud.user_id != ?\n" +
                                   "group by aud.user_id, u.username \n" +
                                   "order by max(aud.recording_timestamp) desc\n" +
-                                  "limit 5");
+                                  "limit 5"),
+    GET_USER_AUDIO_FROM("select min(recording_timestamp) from user_audios \n" +
+                            "where user_id = ? \n" +
+                            "and recording_timestamp > ?\n"),
+    GET_USER_AUDIO_TO("select max(recording_timestamp) from user_audios \n" +
+                          "where user_id = ?"),
+    GET_PREVIOUS_PULL_TIMESTAMP_BY_FOLLOWEE("select followee_id, pull_timestamp, last_pull_timestamp \n" +
+                                                "from pull_stats\n" +
+                                                "where pull_timestamp <= ?\n" +
+                                                "and user_id = ? and followee_id = ?\n" +
+                                                "order by last_pull_timestamp desc limit 1");
 
     String value;
 

@@ -112,11 +112,13 @@ public class ButtonsService
         return inlineKeyboardMarkup;
     }
 
-    public InlineKeyboardMarkup getShowTimestampsButton()
+    public InlineKeyboardMarkup getShowTimestampsButton(long userId)
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Show Timestamps \uD83D\uDCDD");
-        timezoneButton.setCallbackData("timestamps_show");
+
+        String callbackData = userId != 0 ? "timestamps_show_" + userId : "timestamps_show";
+        timezoneButton.setCallbackData(callbackData);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
@@ -124,11 +126,13 @@ public class ButtonsService
     }
 
 
-    public InlineKeyboardMarkup getHideTimestampsButton()
+    public InlineKeyboardMarkup getHideTimestampsButton(long userId)
     {
         InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
         timezoneButton.setText("Hide Timestamps \uD83D\uDE48");
-        timezoneButton.setCallbackData("timestamps_hide");
+
+        String callbackData = userId != 0 ? "timestamps_hide_" + userId : "timestamps_hide";
+        timezoneButton.setCallbackData(callbackData);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(timezoneButton)));
