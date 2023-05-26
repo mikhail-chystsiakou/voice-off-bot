@@ -629,7 +629,7 @@ public class UserServiceImpl implements org.example.service.UserService {
             )
             {
                 System.out.println("hmm it's description");
-                sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton(followeePullTimestamps.getFolloweeId()));
+                sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton(followeePullTimestamps.getFolloweeId(), pullReplies));
             }
             String profilePicture = fileUtils.getProfilePicturePath(followeePullTimestamps.followeeId);
             if (profilePicture != null)
