@@ -63,7 +63,13 @@ public enum Queries
     GET_VOICE_PARTS_BY_TIMESTAMPS("" +
             "select * from user_audios where user_id = ? " +
             "and recording_timestamp > ? and recording_timestamp < ?" +
+             "and reply_to_message_id is null\n" +
             "order by recording_timestamp asc"),
+    GET_VOICE_PARTS_BY_TIMESTAMPS_WITH_REPLY("" +
+                                      "select * from user_audios where user_id = ? " +
+                                      "and recording_timestamp > ? and recording_timestamp < ?" +
+                                      "and reply_to_message_id is not null\n" +
+                                      "order by recording_timestamp asc"),
     UPDATE_NOTIFICATION_BY_USER("update users set notifications = ? where user_id = ?"),
     UPDATE_FEEDBACK_ALLOWED_BY_USER("update users set feedback_mode_allowed = ? where user_id = ?"),
     UPDATE_FEEDBACK_ENABLED_BY_USER("update users set feedback_mode_enabled = ? where user_id = ?"),

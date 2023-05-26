@@ -989,12 +989,13 @@ public class UpdateHandler {
         String[] data = callbackQuery.getData().split("_");
         System.out.println("callback data: " + callbackQuery.getData());
 
-        long followeeId = data.length == 3 ? Long.parseLong(data[2]) : 0;
+        long followeeId = data.length > 2 ? Long.parseLong(data[2]) : 0;
+        boolean isReply = data.length > 3;
         System.out.println("new f: " + followeeId);
 
         EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setMessageId(message.getMessageId());
-        emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId));
+        emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId, isReply));
         emrm.setChatId(message.getChatId());
 
         EditMessageCaption emc = new EditMessageCaption();
@@ -1018,7 +1019,8 @@ public class UpdateHandler {
             List<VoicePart> voiceParts = loadVoiceParts(
                     getPullTimestamps.getFirst(),
                     getPullTimestamps.getSecond()  + 1000L,
-                    getPullTimestamps.getThird()
+                    getPullTimestamps.getThird(),
+                    isReply
             );
             System.out.println(Arrays.toString(voiceParts.toArray()));
             String caption = "";
@@ -1030,11 +1032,11 @@ public class UpdateHandler {
 
             emc.setCaption(caption);
             emc.setParseMode("Markdown");
-            emrm.setReplyMarkup(buttonsService.getHideTimestampsButton(followeeId));
+            emrm.setReplyMarkup(buttonsService.getHideTimestampsButton(followeeId, isReply));
 
         } else if (callback.startsWith("timestamps_hide")) {
             emc.setCaption("");
-            emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId));
+            emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId, isReply));
         }
         executeFunction.execute(emc);
         executeFunction.execute(emrm);
@@ -1068,13 +1070,14 @@ public class UpdateHandler {
                 }, new Timestamp(nextTimestamp), userId);
     }
 
-    private List<VoicePart> loadVoiceParts(long userId, Long pullTimestamp, Long lastPullTimestamp) {
+    private List<VoicePart> loadVoiceParts(long userId, Long pullTimestamp, Long lastPullTimestamp, boolean isReply) {
         if (pullTimestamp == null || lastPullTimestamp == null) return Collections.emptyList();
 
         System.out.println("Loading voice parts for user " + userId + ", " + new Timestamp(pullTimestamp) + " - " + new Timestamp(lastPullTimestamp) );
 
+        String query = isReply ? GET_VOICE_PARTS_BY_TIMESTAMPS_WITH_REPLY.getValue() : GET_VOICE_PARTS_BY_TIMESTAMPS.getValue();
 
-        return jdbcTemplate.queryForStream(GET_VOICE_PARTS_BY_TIMESTAMPS.getValue(),
+        return jdbcTemplate.queryForStream(query,
                 (rs, rn) -> {
                     VoicePart voicePart = new VoicePart();
                     voicePart.duration = rs.getLong("duration");
