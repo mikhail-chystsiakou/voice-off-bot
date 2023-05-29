@@ -7,7 +7,6 @@ import org.example.model.Subscription;
 import org.example.model.SubscriptionId;
 import org.example.model.UserInfo;
 import org.example.repository.SubscriptionRepository;
-import org.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,12 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-
 import static org.example.constant.ExceptionMessageConstant.ENTITY_BY_ID_IS_NOT_FOUND;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,26 +42,25 @@ class SubscriptionServiceImplTest {
 
     @BeforeEach
     public void init() {
-        user1 = UserInfo.builder()
-                .userId(1L)
-                .chatId("1")
-                .username("user1")
-                .firstName("John")
-                .lastName("Doe")
-                .timezone(0)
-                .feedbackModeAllowed(true)
-                .feedbackModeEnabled(true)
-                .build();
-        user2 = UserInfo.builder()
-                .userId(2L)
-                .chatId("2")
-                .username("user2")
-                .firstName("John")
-                .lastName("Doe")
-                .timezone(0)
-                .feedbackModeAllowed(true)
-                .feedbackModeEnabled(true)
-                .build();
+        user1 = new UserInfo();
+        user1.setUserId(1L);
+        user1.setChatId("1");
+        user1.setUsername("user1");
+        user1.setFirstName("John");
+        user1.setLastName("Doe");
+        user1.setTimezone(0);
+        user1.setFeedbackModeAllowed(true);
+        user1.setFeedbackModeEnabled(true);
+
+        user2 = new UserInfo();
+        user2.setUserId(1L);
+        user2.setChatId("1");
+        user2.setUsername("user1");
+        user2.setFirstName("John");
+        user2.setLastName("Doe");
+        user2.setTimezone(0);
+        user2.setFeedbackModeAllowed(true);
+        user2.setFeedbackModeEnabled(true);
     }
 
     @Test

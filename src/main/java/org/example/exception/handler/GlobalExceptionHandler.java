@@ -1,5 +1,6 @@
 package org.example.exception.handler;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.exception.EntityAlreadyExistsException;
 import org.example.exception.EntityNotFoundException;
 import org.example.model.ErrorResponse;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler({EntityAlreadyExistsException.class})
@@ -32,6 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({Exception.class})
     public ResponseEntity<ErrorResponse> handleException(Exception exception) {
+        log.error("Got and exception", exception);
         return createResponseFromHttpCodeAndMessage(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
     }
 

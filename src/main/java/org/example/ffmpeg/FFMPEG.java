@@ -16,12 +16,8 @@ import java.io.*;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.MessageFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -192,7 +188,6 @@ public class FFMPEG {
                     file.getFileId(),
                     FileStorage.DEFAULT_AUDIO_EXTENSION,
                     type,
-                    file.getMessageId(),
                     file.getReplyModeFolloweeId()
                 );
                 String fileString = "file '" + filePath + "'\n";

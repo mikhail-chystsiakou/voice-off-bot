@@ -34,10 +34,10 @@ public class SubscriptionController {
     }
 
     @DeleteMapping
-    public void deleteSubscription(@RequestBody @Valid SubscriptionDTO subscription) {
-        subscriptionService.deleteSubscription(SubscriptionId.builder()
+    public SubscriptionWithUsersDTO deleteSubscription(@RequestBody @Valid SubscriptionDTO subscription) throws EntityNotFoundException {
+        return converter.toDTO(subscriptionService.deleteSubscription(SubscriptionId.builder()
                 .userId(subscription.getUserId())
                 .followeeId(subscription.getFolloweeId())
-                .build());
+                .build()));
     }
 }

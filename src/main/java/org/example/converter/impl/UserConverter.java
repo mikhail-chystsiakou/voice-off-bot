@@ -9,13 +9,13 @@ import org.springframework.stereotype.Component;
 public class UserConverter implements Converter<UserInfo, UserDTO> {
     @Override
     public UserInfo fromDTO(UserDTO userDTO) {
-        return UserInfo.builder()
-                .userId(userDTO.getId())
-                .chatId(userDTO.getChatId())
-                .username(userDTO.getUsername())
-                .firstName(userDTO.getFirstName())
-                .lastName(userDTO.getLastName())
-                .build();
+        UserInfo userInfo = new UserInfo();
+        userInfo.setUserId(userDTO.getId());
+        userInfo.setChatId(userDTO.getChatId());
+        userInfo.setUsername(userDTO.getUsername());
+        userInfo.setFirstName(userInfo.getFirstName());
+        userInfo.setLastName(userDTO.getLastName());
+        return userInfo;
     }
 
     @Override

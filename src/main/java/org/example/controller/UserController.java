@@ -3,6 +3,7 @@ package org.example.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.converter.Converter;
 import org.example.dto.UserDTO;
+import org.example.exception.EntityNotFoundException;
 import org.example.model.UserInfo;
 import org.example.service.UserService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +24,7 @@ public class UserController {
     private final Converter<UserInfo, UserDTO> userConverter;
 
     @GetMapping("user/{userId}/followers")
-    public List<UserDTO> getFollowers(@PathVariable Long userId) {
+    public List<UserDTO> getFollowers(@PathVariable Long userId) throws EntityNotFoundException {
         return userService.getFollowers(userId).stream().map(userConverter::toDTO).collect(Collectors.toList());
     }
 
@@ -33,7 +34,7 @@ public class UserController {
     }
 
     @GetMapping("user/{userId}/subscriptions")
-    public List<UserDTO> getSubscriptions(@PathVariable Long userId) {
+    public List<UserDTO> getSubscriptions(@PathVariable Long userId) throws EntityNotFoundException {
         return userService.getSubscriptions(userId).stream().map(userConverter::toDTO).collect(Collectors.toList());
     }
 }

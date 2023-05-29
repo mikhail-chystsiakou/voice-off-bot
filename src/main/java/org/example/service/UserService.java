@@ -12,5 +12,5 @@ public interface UserService {
 
     List<UserInfo> getUsers();
 
-    List<UserInfo> getSubscriptions(Long userId);
+    List<UserInfo> getSubscriptions(Long userId) throws EntityNotFoundException;
 }

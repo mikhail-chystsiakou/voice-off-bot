@@ -1,8 +1,11 @@
 package org.example.storage;
 
 import org.example.config.BotConfig;
+import org.example.dto.FileDTO;
 import org.example.enums.MessageType;
 import org.example.enums.Queries;
+import org.example.exception.EntityNotFoundException;
+import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.slf4j.Logger;
@@ -11,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 
 import java.io.File;
@@ -23,8 +27,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.TimeZone;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.UUID;
 
 /**
  * FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga"
@@ -50,6 +53,10 @@ public class FileStorage {
     @Lazy
     @Autowired
     ExecuteFunction execute;
+
+    @Lazy
+    @Autowired
+    UserService userService;
 
     public void storeFile(long userId, String fileId, int duration, Integer messageId, Long replyModeFolloweeId, Integer replyModeMessageId) {
         MessageType messageType = MessageType.DATA;
@@ -93,6 +100,8 @@ public class FileStorage {
 
         String dir = getFileDir(userId, recordingTimestamp, messageType);
         String destFilename = getFullFilePath(
+                userId, recordingTimestamp, duration, fileId, extension, messageType, replyModeFolloweeId);
+        System.out.println("Copying from " + sourceFilename + " to " + destFilename);
                 userId, recordingTimestamp, duration, fileId, extension, messageType, messageId, replyModeFolloweeId);
         System.out.println("Copying from " + localSourceFileName + " to " + destFilename);
         long fileSize = 0;
@@ -111,11 +120,26 @@ public class FileStorage {
         System.out.println("File " + fileId + " stored to db");
     }
 
+    public void storeFile(MultipartFile multipartFile, FileDTO fileDTO) throws EntityNotFoundException, IOException {
+        File dest = new File(getFullFilePath(
+                fileDTO.getUserId(),
+                Instant.now().toEpochMilli(),
+                fileDTO.getDuration(),
+                UUID.randomUUID().toString(),
+                DEFAULT_AUDIO_EXTENSION,
+                fileDTO.getMessageType(),
+                userService.getUserById(fileDTO.getUserId()).getReplyModeFolloweeId()
+        ));
+        if (!dest.exists() && !dest.mkdirs()) {
+            throw new RuntimeException("Did not manage to create folders for voice");
+        }
+        multipartFile.transferTo(dest);
+    }
+
     public String getFullFilePath(long userId, long recordingTimestamp, int duration, String fileId,
-                                  String extension, MessageType messageType, Integer messageId, Long replyModeFolloweeId) {
+                                  String extension, MessageType messageType, Long replyModeFolloweeId) {
         String dir = getFileDir(userId, recordingTimestamp, messageType);
-        String destFilename = dir + createFileName(recordingTimestamp, duration, fileId, extension, messageId, messageType, replyModeFolloweeId);
-        return destFilename;
+        return dir + createFileName(recordingTimestamp, duration, fileId, extension, messageType, replyModeFolloweeId);
     }
 
     public String getFileDir(long userId, long recordingTimestamp, MessageType messageType) {
@@ -132,7 +156,7 @@ public class FileStorage {
     }
 
     public String createFileName(long timestamp, int duration, String fileId,
-                                  String extension, Integer messageId, MessageType messageType, Long replyModeFolloweeId) {
+                                  String extension, MessageType messageType, Long replyModeFolloweeId) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd_HH_mm_ss_SSS");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String timePrefix = sdf.format(new Date(timestamp));

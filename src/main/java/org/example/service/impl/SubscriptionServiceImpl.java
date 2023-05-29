@@ -54,9 +54,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
-    public void deleteSubscription(SubscriptionId subscriptionId) {
-        subscriptionRepository.deleteById(subscriptionId);
+    public Subscription deleteSubscription(SubscriptionId subscriptionId) throws EntityNotFoundException {
+        Subscription subscription = getSubscriptionById(subscriptionId);
+        subscriptionRepository.delete(subscription);
         log.info("deleteSubscription: deleted subscription with id {}", subscriptionId);
+        return subscription;
     }
 
     private Subscription createNewSubscription(Long followerId, Long followeeId) throws EntityNotFoundException, EntityAlreadyExistsException {

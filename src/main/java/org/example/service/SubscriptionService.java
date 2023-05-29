@@ -9,5 +9,5 @@ public interface SubscriptionService {
 
     Subscription createSubscription(Long followerId, Long followeeId) throws EntityNotFoundException, EntityAlreadyExistsException;
 
-    void deleteSubscription(SubscriptionId subscriptionId);
+    Subscription deleteSubscription(SubscriptionId subscriptionId) throws EntityNotFoundException;
 }

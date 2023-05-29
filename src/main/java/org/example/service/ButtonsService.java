@@ -64,9 +64,9 @@ public class ButtonsService
             rows.clear();
             buttonForManagingSubscriptions.setText(ButtonCommands.DISABLE_REPLY_MODE.getDescription());
             rows.add(new KeyboardRow(Arrays.asList(buttonForManagingSubscriptions)));
-        } else if (userInfo.isFeedbackModeAllowed()){
+        } else if (Boolean.TRUE.equals(userInfo.getFeedbackModeAllowed())){
             KeyboardButton feedbackButton = new KeyboardButton();
-            if (userInfo.isFeedbackModeEnabled()) {
+            if (Boolean.TRUE.equals(userInfo.getFeedbackModeEnabled())) {
                 feedbackButton.setText(ButtonCommands.DISABLE_FEEDBACK_MODE.getDescription());
                 rows.clear();
             } else {
@@ -97,7 +97,7 @@ public class ButtonsService
         if (userInfo == null) {
             logger.warn("UserInfo is null", new RuntimeException());
         }
-        if (userInfo != null && userInfo.isFeedbackModeAllowed()) {
+        if (userInfo != null && Boolean.TRUE.equals(userInfo.getFeedbackModeAllowed())) {
             feedbackModeButtonText = "Prohibit Feedback Mode \uD83E\uDD10";
             feedbackCallback = SETTING_FEEDBACK_PROHIBITED;
         }

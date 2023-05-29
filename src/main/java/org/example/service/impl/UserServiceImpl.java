@@ -1,8 +1,6 @@
 package org.example.service.impl;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.example.config.BotConfig;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
@@ -18,11 +16,14 @@ import org.example.model.UserInfo;
 import org.example.model.VoicePart;
 import org.example.repository.UserRepository;
 import org.example.service.ButtonsService;
+import org.example.service.FileUserService;
 import org.example.service.StatsService;
+import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.example.util.NumberToEmoji;
 import org.example.util.ThreadLocalMap;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -54,8 +56,7 @@ import static org.example.enums.Queries.*;
 import static org.example.util.ThreadLocalMap.*;
 
 @Service
-@NoArgsConstructor
-public class UserServiceImpl implements org.example.service.UserService {
+public class UserServiceImpl implements UserService, FileUserService {
     public static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
     private static final String VIRTUAL_TIMESTAMP_PATTERN = "yyyyMMddHHmmssSSS";
     JdbcTemplate jdbcTemplate;
@@ -117,7 +118,13 @@ public class UserServiceImpl implements org.example.service.UserService {
                 .orElseThrow(() -> new EntityNotFoundException(String.format(ENTITY_BY_ID_IS_NOT_FOUND, "User", userId)));
     }
 
-    public Long getUserIdById(Long userId) {
+    @NotNull
+    @Override
+    public UserInfo getUserById(long userId) throws EntityNotFoundException {
+        return getUserById(Long.valueOf(userId));
+    }
+
+    public Long getUserIdById(Long userId){
         return jdbcTemplate.query(Queries.GET_USER_BY_ID.getValue(), new Object[]{userId}, new UserMapper())
             .stream().findFirst().map(UserDAO::getId).orElse(null);
     }
