@@ -23,6 +23,8 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga"
@@ -82,14 +84,21 @@ public class FileStorage {
 //            throw new RuntimeException(e);
         }
 
+        // rewrite file path
+        // for case when tgapi server is running in docker
+        Pattern p = Pattern.compile(".*" + botConfig.getToken() + "(/.*)");
+        Matcher m = p.matcher(sourceFilename);
+        m.find();
+        String localSourceFileName = botConfig.getStoragePath() + "/tgapi/" + botConfig.getToken() +  m.group(1);
+
         String dir = getFileDir(userId, recordingTimestamp, messageType);
         String destFilename = getFullFilePath(
                 userId, recordingTimestamp, duration, fileId, extension, messageType, messageId, replyModeFolloweeId);
-        System.out.println("Copying from " + sourceFilename + " to " + destFilename);
+        System.out.println("Copying from " + localSourceFileName + " to " + destFilename);
         long fileSize = 0;
         try {
             Files.createDirectories(Paths.get(dir));
-            fileUtils.moveFileAbsolute(sourceFilename, destFilename);
+            fileUtils.moveFileAbsolute(localSourceFileName, destFilename);
             Path filePath = Paths.get(destFilename);
             fileSize = Files.size(filePath);
         } catch (IOException e) {
