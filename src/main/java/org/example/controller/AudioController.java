@@ -8,12 +8,10 @@ import org.example.enums.Queries;
 import org.example.ffmpeg.FFMPEG;
 import org.example.ffmpeg.FFMPEGResult;
 import org.example.model.UserInfo;
-import org.example.service.UpdateHandler;
 import org.example.service.impl.UserServiceImpl;
 import org.example.util.PullProcessingSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,12 +20,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
-import javax.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.example.enums.Queries.SET_PULL_TIMESTAMP;
 
@@ -105,5 +99,15 @@ public class AudioController
         }
         pullProcessingSet.finishProcessingForUser(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("long")
+    public ResponseEntity<Object> pull() {
+        FileSystemResource fsr = new FileSystemResource("/mnt/bewired/resources/longAudio.opus");
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.valueOf("audio/opus"))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fsr.getFilename() + "\"")
+            .body(fsr);
     }
 }
