@@ -1048,9 +1048,8 @@ public class UpdateHandler {
                 String caption = emc.getCaption();
                 emc.setCaption(caption.substring(0, 1021) + "...");
                 executeFunction.execute(emc);
-                executeFunction.execute(emc);
             }
-            System.out.println("exception voly " + e.getMessage() + " " + e.getCause());
+            log.info("error in showHideTimestamps(): " + e.getMessage());
         }
         executeFunction.execute(emrm);
     }
