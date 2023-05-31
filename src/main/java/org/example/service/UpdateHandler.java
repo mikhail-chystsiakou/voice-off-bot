@@ -23,6 +23,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -1038,7 +1039,19 @@ public class UpdateHandler {
             emc.setCaption("");
             emrm.setReplyMarkup(buttonsService.getShowTimestampsButton(followeeId, isReply));
         }
-        executeFunction.execute(emc);
+        try{
+            executeFunction.execute(emc);
+        }
+        catch (Exception e){
+            if (e.getMessage().contains("MEDIA_CAPTION_TOO_LONG"))
+            {
+                String caption = emc.getCaption();
+                emc.setCaption(caption.substring(0, 1021) + "...");
+                executeFunction.execute(emc);
+                executeFunction.execute(emc);
+            }
+            System.out.println("exception voly " + e.getMessage() + " " + e.getCause());
+        }
         executeFunction.execute(emrm);
     }
 
