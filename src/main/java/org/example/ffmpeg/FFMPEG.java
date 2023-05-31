@@ -124,7 +124,7 @@ public class FFMPEG {
         if (MessageType.REPLY.equals(type)) {
             title = "Reply from " + fromStr;
         }
-        if (!toStr.equals(fromStr)) title += "to " + toStr;
+        if (!toStr.equals(fromStr)) title += " to " + toStr;
 
         return title;
     }
