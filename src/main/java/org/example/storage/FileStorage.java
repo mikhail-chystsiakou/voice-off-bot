@@ -26,6 +26,8 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga"
@@ -99,7 +101,6 @@ public class FileStorage {
         String destFilename = getFullFilePath(
                 userId, recordingTimestamp, duration, fileId, extension, messageType, replyModeFolloweeId);
         System.out.println("Copying from " + sourceFilename + " to " + destFilename);
-                userId, recordingTimestamp, duration, fileId, extension, messageType, messageId, replyModeFolloweeId);
         System.out.println("Copying from " + localSourceFileName + " to " + destFilename);
         long fileSize = 0;
         try {

@@ -1,5 +1,6 @@
 package org.example.ffmpeg;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.config.BotConfig;
 import org.example.config.Config;
 import org.example.enums.MessageType;
@@ -45,8 +46,8 @@ public class FFMPEG {
         String osName = System.getProperty("os.name");
     }
 
-    public FFMPEGResult produceFiles(MessageType type, long userId, long from, long to, Long replyFolloweeId) {
-        log.debug("FFMPEG called with params: {}, {}, {}, {}, {}", type, userId, from, to, replyFolloweeId);
+    public FFMPEGResult produceFiles(MessageType type, long userId, long from, Long replyFolloweeId) {
+        log.debug("FFMPEG called with params: {}, {}, {}, {}", type, userId, from, replyFolloweeId);
         String tempStoragePath = botConfig.getStoragePath() + botConfig.getTmpPath() + File.separator;
 
         VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, System.currentTimeMillis());
@@ -129,9 +130,6 @@ public class FFMPEG {
     );
     private static final String DATE_FORMAT = "yyyyMMddHHmmssSSS";
 
-    /**
-     * @param url in form of USERID_DATEFROM_DATETO.ogg
-     */
     private VirtualFileInfo loadVirtualFile(long userId, long from, long to) {
         VirtualFileInfo result = new VirtualFileInfo(userId, from, to);
         jdbcTemplate.query("select username, first_name, last_name from users where user_id = ?",
