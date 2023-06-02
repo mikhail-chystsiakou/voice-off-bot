@@ -1,13 +1,14 @@
 package org.example.service.impl;
 
 import lombok.Data;
-import org.example.config.BotConfig;
+import lombok.extern.slf4j.Slf4j;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
 import org.example.enums.FollowQueries;
 import org.example.enums.MessageType;
 import org.example.enums.Queries;
+import org.example.exception.EntityNotFoundException;
 import org.example.ffmpeg.FFMPEG;
 import org.example.ffmpeg.FFMPEGResult;
 import org.example.ffmpeg.FileInfo;
@@ -16,13 +17,14 @@ import org.example.model.UserInfo;
 import org.example.model.VoicePart;
 import org.example.repository.UserRepository;
 import org.example.service.ButtonsService;
+import org.example.service.FileUserService;
 import org.example.service.StatsService;
+import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
 import org.example.util.NumberToEmoji;
 import org.example.util.ThreadLocalMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -34,6 +36,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -47,20 +50,18 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.example.constant.ExceptionMessageConstant.ENTITY_BY_ID_IS_NOT_FOUND;
 import static org.example.enums.Queries.*;
 import static org.example.util.ThreadLocalMap.*;
 
 @Service
-public class UserServiceImpl implements org.example.service.UserService {
-    public static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+@Slf4j
+public class UserServiceImpl implements UserService, FileUserService {
     private static final String VIRTUAL_TIMESTAMP_PATTERN = "yyyyMMddHHmmssSSS";
     JdbcTemplate jdbcTemplate;
 
     @Autowired
     FileUtils fileUtils;
-
-    @Autowired
-    BotConfig botConfig;
 
     @Autowired
     FFMPEG ffmpeg;
@@ -82,15 +83,18 @@ public class UserServiceImpl implements org.example.service.UserService {
     ButtonsService buttonsService;
 
     @Autowired
-    public UserServiceImpl(DataSourceConfig dataSourceConfig)
-    {
+    public UserServiceImpl(DataSourceConfig dataSourceConfig) {
         this.jdbcTemplate = dataSourceConfig.jdbcTemplate();
     }
 
     @Autowired
     NumberToEmoji numberToEmoji;
 
-    public int addUser(Long userId, Long chatId, String userName, String firstName, String lastName){
+    public UserInfo addUser(UserInfo userInfo) {
+        return userRepository.save(userInfo);
+    }
+
+    public int addUser(Long userId, Long chatId, String userName, String firstName, String lastName) {
         return jdbcTemplate.update(Queries.ADD_USER.getValue(), userId, userName, firstName, lastName, chatId);
     }
 
@@ -102,31 +106,38 @@ public class UserServiceImpl implements org.example.service.UserService {
 //        return jdbcTemplate.update(Queries.ADD_AUDIO.getValue(), userId, fileId, messageId);
 //    }
 
-    public Long getFolloweeByPullMessage(Integer pullMessageId){
+    public Long getFolloweeByPullMessage(Integer pullMessageId) {
         return jdbcTemplate.queryForObject(Queries.GET_FOLLOWEE_ID_BY_PULL_MESSAGE_ID.getValue(), new Object[]{pullMessageId}, Long.class);
     }
 
     @Override
-    public UserInfo getUserById(Long userId) {
-        return userRepository.findById(userId).orElse(null);
+    public UserInfo getUserById(Long userId) throws EntityNotFoundException {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException(String.format(ENTITY_BY_ID_IS_NOT_FOUND, "User", userId)));
+    }
+
+    @NotNull
+    @Override
+    public UserInfo getUserById(long userId) throws EntityNotFoundException {
+        return getUserById(Long.valueOf(userId));
     }
 
     public Long getUserIdById(Long userId) {
         return jdbcTemplate.query(Queries.GET_USER_BY_ID.getValue(), new Object[]{userId}, new UserMapper())
-            .stream().findFirst().map(UserDAO::getId).orElse(null);
+                .stream().findFirst().map(UserDAO::getId).orElse(null);
     }
 
-    public Integer getSubscriberByUserIdAndSubscriberId(Long userId, Long subscriberId){
-       return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWING.getValue(), new Object[]{userId, subscriberId}, Integer.class);
+    public Integer getSubscriberByUserIdAndSubscriberId(Long userId, Long subscriberId) {
+        return jdbcTemplate.queryForObject(Queries.CHECK_FOLLOWING.getValue(), new Object[]{userId, subscriberId}, Integer.class);
     }
 
-    public int addContact(Long userId, Long contactId){
+    public int addContact(Long userId, Long contactId) {
         jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
         return jdbcTemplate.update(Queries.ADD_CONTACT.getValue(), userId, contactId);
     }
 
-    public int removeRequestToConfirm(Long userId, Long contactId){
-        return  jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
+    public int removeRequestToConfirm(Long userId, Long contactId) {
+        return jdbcTemplate.update(Queries.REMOVE_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
     }
 
 
@@ -135,49 +146,38 @@ public class UserServiceImpl implements org.example.service.UserService {
 
     }
 
-    public Long getChatIdByUserId(Long contactId)
-    {
+    public Long getChatIdByUserId(Long contactId) {
         return jdbcTemplate.queryForObject(Queries.GET_CHAT_ID_BY_USER_ID.getValue(), new Object[]{contactId}, Long.class);
     }
 
-    public int addRequestToConfirm(Long userId, Long contactId)
-    {
+    public int addRequestToConfirm(Long userId, Long contactId) {
         return jdbcTemplate.update(Queries.ADD_REQUEST_TO_CONFIRM.getValue(), userId, contactId);
     }
 
-    public Long getUserByFoloweeId(Long foloweeId)
-    {
-        try
-        {
+    public Long getUserByFoloweeId(Long foloweeId) {
+        try {
             return jdbcTemplate.queryForObject(Queries.GET_USER_ID_BY_FOLLOWEE_ID.getValue(), new Object[]{foloweeId}, Long.class);
-        }
-        catch (EmptyResultDataAccessException e)
-        {
+        } catch (EmptyResultDataAccessException e) {
             return null;
         }
     }
 
-    public Timestamp getLatestRequestTimestamp(Long userId, Long followeeId)
-    {
-        try
-        {
+    public Timestamp getLatestRequestTimestamp(Long userId, Long followeeId) {
+        try {
             return jdbcTemplate.queryForObject(Queries.GET_LATEST_FOLLOW_REQUEST_TIMESTAMP.getValue(), new Object[]{userId, followeeId}, Timestamp.class);
-        }
-        catch (EmptyResultDataAccessException e)
-        {
+        } catch (EmptyResultDataAccessException e) {
             return null;
         }
     }
 
     @Override
-    public List<UserInfo> getFollowers(Long userId) {
+    public List<UserInfo> getFollowers(Long userId) throws EntityNotFoundException {
         UserInfo user = getUserById(userId);
         return user.getFollowers().stream().map(Subscription::getUserInfo).collect(Collectors.toList());
     }
 
     @Override
-    public List<UserInfo> getUsers()
-    {
+    public List<UserInfo> getUsers() {
         return userRepository.findAll();
     }
 
@@ -211,7 +211,7 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
     @Override
-    public List<UserInfo> getSubscriptions(Long userId) {
+    public List<UserInfo> getSubscriptions(Long userId) throws EntityNotFoundException {
         return getUserById(userId).getSubscriptions().stream().map(Subscription::getFollowee).collect(Collectors.toList());
     }
 
@@ -232,7 +232,7 @@ public class UserServiceImpl implements org.example.service.UserService {
         return sm;
     }
 
-    public int unsubscribe(Message message, UserInfo followee){
+    public int unsubscribe(Message message, UserInfo followee) {
         return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
     }
 
@@ -294,126 +294,111 @@ public class UserServiceImpl implements org.example.service.UserService {
         return sm;
     }
 
-    public int removeRecordByUserIdAndMessageId(Long userId, String messageId)
-    {
+    public int removeRecordByUserIdAndMessageId(Long userId, String messageId) {
         return jdbcTemplate.update(Queries.REMOVE_LAST_USER_RECORD.getValue(), userId, Integer.valueOf(messageId));
     }
 
-    public Map<String, String> getUserNamesByUserId(Long userId)
-    {
+    public Map<String, String> getUserNamesByUserId(Long userId) {
         return jdbcTemplate.queryForStream(
-            Queries.GET_USER_NAMES_BY_USER_ID.getValue(),
-            (rs, rn) -> {
-                Map<String, String> result = new HashMap<>();
-                result.put("username", rs.getString("username"));
-                result.put("first_name", rs.getString("first_name"));
-                result.put("last_name", rs.getString("last_name"));
-                return result;
-            },
-            userId
+                Queries.GET_USER_NAMES_BY_USER_ID.getValue(),
+                (rs, rn) -> {
+                    Map<String, String> result = new HashMap<>();
+                    result.put("username", rs.getString("username"));
+                    result.put("first_name", rs.getString("first_name"));
+                    result.put("last_name", rs.getString("last_name"));
+                    return result;
+                },
+                userId
         ).findFirst().orElse(null);
     }
 
-    public int updateNameColumn(Long userId, String columnName, String valueToSet)
-    {
+    public int updateNameColumn(Long userId, String columnName, String valueToSet) {
         return jdbcTemplate.update("update users set " + columnName + " = ? where user_id = ?", valueToSet, userId);
     }
 
-    public int updateNotificationSettings(long userId, int value)
-    {
+    public int updateNotificationSettings(long userId, int value) {
         return jdbcTemplate.update(Queries.UPDATE_NOTIFICATION_BY_USER.getValue(), value, userId);
     }
 
-    public int updateFeedbackAllowed(long userId, boolean isFeedbackAllowed)
-    {
+    public int updateFeedbackAllowed(long userId, boolean isFeedbackAllowed) {
         return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ALLOWED_BY_USER.getValue(), isFeedbackAllowed, userId);
     }
 
-    public int updateReplyEnabled(long userId, Long replyModeFolloweeId, Integer replyMessageId)
-    {
+    public int updateReplyEnabled(long userId, Long replyModeFolloweeId, Integer replyMessageId) {
         System.out.println("updating reply mode for user " + userId
                 + ", replyModeFolloweeId: " + replyModeFolloweeId + ", replyMessageId: " + replyMessageId);
         return jdbcTemplate.update(Queries.UPDATE_REPLY_ENABLED_BY_USER.getValue(), replyModeFolloweeId, replyMessageId, userId);
     }
 
-    public int updateFeedbackEnabled(long userId, boolean isFeedbackEnabled)
-    {
+    public int updateFeedbackEnabled(long userId, boolean isFeedbackEnabled) {
         return jdbcTemplate.update(Queries.UPDATE_FEEDBACK_ENABLED_BY_USER.getValue(), isFeedbackEnabled, userId);
     }
 
     //Map<timezone, users>
-    public Map<Integer, List<Long>> getUsersForDelayNotifications(Long userId)
-    {
+    public Map<Integer, List<Long>> getUsersForDelayNotifications(Long userId) {
         final Map<Integer, List<Long>> result = new HashMap<>();
         jdbcTemplate.query(
-            GET_USERS_FOR_DELAY_NOTIFICATIONS.getValue(),
-            (rs, rn) -> {
-                long id = rs.getLong("user_id");
-                int timezone = rs.getInt("time_zone");
-                result.compute(timezone, (k, v) -> {
-                    if (v == null) v = new LinkedList<>();
-                    v.add(id);
-                    return  v;
-                });
-                return result;
-            },
-            userId);
+                GET_USERS_FOR_DELAY_NOTIFICATIONS.getValue(),
+                (rs, rn) -> {
+                    long id = rs.getLong("user_id");
+                    int timezone = rs.getInt("time_zone");
+                    result.compute(timezone, (k, v) -> {
+                        if (v == null) v = new LinkedList<>();
+                        v.add(id);
+                        return v;
+                    });
+                    return result;
+                },
+                userId);
 
         return result;
     }
 
-    public List<Long> getUsersForInstantNotifications(Long userId){
+    public List<Long> getUsersForInstantNotifications(Long userId) {
         return jdbcTemplate.queryForList(GET_USERS_FOR_INSTANT_NOTIFICATIONS.getValue(), new Object[]{userId}, Long.class);
     }
 
-    public void addUserNotification(Long userId, LocalTime estimatedTimeWithTimeZone)
-    {
-        if (!isNotificationForUserExists(userId)){
+    public void addUserNotification(Long userId, LocalTime estimatedTimeWithTimeZone) {
+        if (!isNotificationForUserExists(userId)) {
             jdbcTemplate.update(Queries.ADD_USER_NOTIFICATION.getValue(), userId, estimatedTimeWithTimeZone);
         }
     }
 
-    private boolean isNotificationForUserExists(Long userId)
-    {
+    private boolean isNotificationForUserExists(Long userId) {
         int result = jdbcTemplate.queryForObject(Queries.CHECK_USER_NOTIFICATION.getValue(), new Object[]{userId}, Integer.class);
         return result != 0;
     }
 
-    public List<Long> getDelayNotifications()
-    {
+    public List<Long> getDelayNotifications() {
         return jdbcTemplate.queryForList(Queries.GET_CHAT_ID_FOR_NOTIFICATIONS.getValue(), Long.class);
     }
 
-    public int deleteUserFromDelayNotification(Long userId)
-    {
+    public int deleteUserFromDelayNotification(Long userId) {
         return jdbcTemplate.update(Queries.DELETE_USER_FROM_DELAY_NOTIFICATIONS.getValue(), userId);
     }
 
-    public FileInfo getFileIdByUserAndMessageId(Long userId, Integer messageId)
-    {
+    public FileInfo getFileIdByUserAndMessageId(Long userId, Integer messageId) {
         return jdbcTemplate.query(
-            GET_FILE_ID_BY_USER_AND_MESSAGE_ID.getValue(),
-            (rs, rn) -> {
-                String fileId = rs.getString("file_id");
-                int duration = Integer.parseInt(rs.getString("duration"));
-                long recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
-                return new FileInfo(userId, fileId, duration, recordingTimestamp, messageId, null);
-            },
-            userId,
-            messageId).stream().findFirst().orElse(null);
+                GET_FILE_ID_BY_USER_AND_MESSAGE_ID.getValue(),
+                (rs, rn) -> {
+                    String fileId = rs.getString("file_id");
+                    int duration = Integer.parseInt(rs.getString("duration"));
+                    long recordingTimestamp = rs.getTimestamp("recording_timestamp").getTime();
+                    return new FileInfo(userId, fileId, duration, recordingTimestamp, messageId, null);
+                },
+                userId,
+                messageId).stream().findFirst().orElse(null);
     }
 
-    public void deleteNotifications()
-    {
+    public void deleteNotifications() {
         jdbcTemplate.update(Queries.DELETE_NOTIFICATIONS.getValue());
     }
 
-    public List<String> getListOfTheMostActiveUsers(long userId)
-    {
+    public List<String> getListOfTheMostActiveUsers(long userId) {
         List<String> result = jdbcTemplate.queryForStream(
-            Queries.GET_THE_MOST_ACTIVE_USERS.getValue(),
-            (rs, rn) -> rs.getString("username"),
-            userId
+                Queries.GET_THE_MOST_ACTIVE_USERS.getValue(),
+                (rs, rn) -> rs.getString("username"),
+                userId
         ).collect(Collectors.toList());
         return result;
     }
@@ -425,9 +410,8 @@ public class UserServiceImpl implements org.example.service.UserService {
     }
 
 
-
     public boolean isDataAvailable(Long userId) {
-        logger.debug("isDataAvailable({})", userId);
+        log.debug("isDataAvailable({})", userId);
         boolean repliesPresent = jdbcTemplate.queryForStream(
                 Queries.GET_REPLY_LAST_PULL_TIME.getValue(),
                 (rs, rn) -> {
@@ -439,7 +423,7 @@ public class UserServiceImpl implements org.example.service.UserService {
                 },
                 userId
         ).findAny().isPresent();
-        logger.debug("isDataAvailable({}) for reply: {}, query: {}", userId, repliesPresent, Queries.GET_REPLY_LAST_PULL_TIME.getValue());
+        log.debug("isDataAvailable({}) for reply: {}, query: {}", userId, repliesPresent, Queries.GET_REPLY_LAST_PULL_TIME.getValue());
 
         if (repliesPresent) return true;
 
@@ -454,19 +438,18 @@ public class UserServiceImpl implements org.example.service.UserService {
                 },
                 userId
         ).findAny().isPresent();
-        logger.debug("isDataAvailable({}) for voices: {}, query: {}", userId, voicesPresent, Queries.GET_LAST_PULL_TIME.getValue());
+        log.debug("isDataAvailable({}) for voices: {}, query: {}", userId, voicesPresent, Queries.GET_LAST_PULL_TIME.getValue());
 
         return voicesPresent;
     }
 
-    public SendAudio pullRecordForUser(Long userId, Long chatId)
-    {
+    public SendAudio pullRecordForUser(Long userId, Long chatId) {
         SendAudio reply = pullAudio(true, userId, chatId);
         if (reply != null) return reply;
         return pullAudio(false, userId, chatId);
     }
 
-    private SendAudio pullAudio(boolean pullReplies, Long userId, Long chatId){
+    private SendAudio pullAudio(boolean pullReplies, Long userId, Long chatId) {
         long nextPullTimestamp = System.currentTimeMillis();
         Queries query = Queries.GET_LAST_PULL_TIME;
         if (pullReplies) {
@@ -489,49 +472,45 @@ public class UserServiceImpl implements org.example.service.UserService {
                 userId
         ).findFirst().orElse(null);
 
-        logger.debug("pullAudios(pullReplies:{}, userId: {}, chatId: {}) result: {}, query: {}",
+        log.debug("pullAudios(pullReplies:{}, userId: {}, chatId: {}) result: {}, query: {}",
                 pullReplies, userId, chatId, followeePullTimestamps, query.getValue()
         );
 
         String origMessageIds;
 
-        if (followeePullTimestamps != null){
+        if (followeePullTimestamps != null) {
             System.out.println(followeePullTimestamps);
             statsService.setFolloweeId(followeePullTimestamps.followeeId);
             statsService.setLastPullTimestamp(followeePullTimestamps.lastPullTimestamp);
 
             // collect recordings
             MessageType type = MessageType.DATA;
-            if (pullReplies)
-            {
+            if (pullReplies) {
                 type = MessageType.REPLY;
             }
             FFMPEGResult localFile = ffmpeg.produceFiles(type,
-                                                         followeePullTimestamps.followeeId,
-                                                         followeePullTimestamps.lastPullTimestamp,
-                                                         userId
+                    followeePullTimestamps.followeeId,
+                    followeePullTimestamps.lastPullTimestamp,
+                    userId
             );
-            logger.debug("ffmpeg.produceFiles({}, {}, {}, {}, {}): localFile: {}",
-                         type,
-                         followeePullTimestamps.followeeId,
-                         followeePullTimestamps.lastPullTimestamp, nextPullTimestamp,
-                         userId,
-                         localFile
+            log.debug("ffmpeg.produceFiles({}, {}, {}, {}, {}): localFile: {}",
+                    type,
+                    followeePullTimestamps.followeeId,
+                    followeePullTimestamps.lastPullTimestamp, nextPullTimestamp,
+                    userId,
+                    localFile
             );
             long lastFileRecordingTimestamp = localFile.getLastFileRecordingTimestamp();
             statsService.setPullTimestamp(lastFileRecordingTimestamp);
-            if (pullReplies)
-            {
+            if (pullReplies) {
                 System.out.println("setting timestamp for replies on " + followeePullTimestamps.followeeId + "-" + userId);
                 jdbcTemplate.update(REMOVE_REPLY_PULL_TIMESTAMP.getValue(), userId, followeePullTimestamps.followeeId);
                 jdbcTemplate.update(ADD_REPLY_PULL_TIMESTAMP.getValue(),
-                                    new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
+                        new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
                 );
-            }
-            else
-            {
+            } else {
                 jdbcTemplate.update(SET_PULL_TIMESTAMP.getValue(),
-                                    new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
+                        new Timestamp(lastFileRecordingTimestamp), userId, followeePullTimestamps.followeeId
                 );
                 System.out.println("setting timestamp for data on " + followeePullTimestamps.followeeId + "-" + userId);
             }
@@ -541,43 +520,34 @@ public class UserServiceImpl implements org.example.service.UserService {
 
             // todo OH MY GOD sql inside loop inside synchronized -_-
             List<VoicePart> voiceParts = Collections.emptyList();
-            synchronized (this)
-            {
+            synchronized (this) {
                 voiceParts = getVoiceParts(followeePullTimestamps.followeeId,
-                                           pullReplies ? userId : null,
-                                           followeePullTimestamps.lastPullTimestamp,
-                                           lastFileRecordingTimestamp);
+                        pullReplies ? userId : null,
+                        followeePullTimestamps.lastPullTimestamp,
+                        lastFileRecordingTimestamp);
 
                 System.out.println(Arrays.asList(voiceParts.toArray()));
-                for (VoicePart vp : voiceParts)
-                {
+                for (VoicePart vp : voiceParts) {
                     vp.setPullCount(vp.getPullCount() + 1);
                     jdbcTemplate.update(SET_PULL_COUNT.getValue(), vp.getPullCount(), followeePullTimestamps.followeeId, vp.messageId);
                     // update messages
                     System.out.println("updating message id " + vp.messageId + " of " + followeePullTimestamps.followeeId + " to pull count " + vp.getPullCount());
                     Integer followeeOkMessageId = jdbcTemplate.queryForObject(GET_OK_MESSAGE_ID.getValue(),
-                                                                              new Object[]{followeePullTimestamps.followeeId, vp.messageId},
-                                                                              Integer.class);
-                    if (followeeOkMessageId != null)
-                    {
+                            new Object[]{followeePullTimestamps.followeeId, vp.messageId},
+                            Integer.class);
+                    if (followeeOkMessageId != null) {
                         EditMessageText emt = new EditMessageText();
                         emt.setChatId(followeePullTimestamps.followeeId);
-                        if (vp.getPullCount() == 1)
-                        {
+                        if (vp.getPullCount() == 1) {
                             emt.setText("Recording was pulled " + numberToEmoji.toEmoji(1) + " time");
-                        }
-                        else
-                        {
+                        } else {
                             emt.setText("Recording was pulled " + numberToEmoji.toEmoji(vp.getPullCount()) + " times");
                         }
                         emt.setMessageId(followeeOkMessageId);
                         emt.setReplyMarkup(buttonsService.getButtonForDeletingRecord((int) vp.messageId));
-                        try
-                        {
+                        try {
                             executeFunction.execute(emt);
-                        }
-                        catch (TelegramApiException e)
-                        {
+                        } catch (TelegramApiException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -588,12 +558,9 @@ public class UserServiceImpl implements org.example.service.UserService {
 
             Path filePath = Paths.get(localFile.getAbsoluteFileURL());
             long fileSize = 0;
-            try
-            {
+            try {
                 fileSize = Files.size(filePath);
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             System.out.println("setting pull file size " + fileSize);
@@ -603,12 +570,11 @@ public class UserServiceImpl implements org.example.service.UserService {
             sendAudio.setAudio(in);
             int duration = 0;
             StringJoiner sj = new StringJoiner(",");
-            for (VoicePart vp : voiceParts)
-            {
+            for (VoicePart vp : voiceParts) {
                 duration += vp.duration;
                 sj.add(String.valueOf(vp.getMessageId()));
             }
-            logger.debug("total duration: {}", duration);
+            log.info("total duration: {}", duration);
             origMessageIds = sj.toString();
             tlm.put(KEY_ORIG_MESSAGE_IDS, origMessageIds);
             tlm.put(KEY_FOLLOWEE_ID, followeePullTimestamps.followeeId);
@@ -618,22 +584,19 @@ public class UserServiceImpl implements org.example.service.UserService {
             sendAudio.setPerformer(localFile.getAudioAuthor());
             System.out.println("Deciding whether to show timestamps button");
             System.out.println("parts size: " + voiceParts.size());
-            if (voiceParts.size() > 0)
-            {
+            if (voiceParts.size() > 0) {
                 System.out.println("First part desc: '" + voiceParts.get(0).getDescription() + "'");
             }
             if (voiceParts.size() > 1
-                || (voiceParts.size() == 1
-                && !ObjectUtils.isEmpty(voiceParts.get(0).getDescription()))
-                && !"null".equals(voiceParts.get(0).getDescription())
-            )
-            {
+                    || (voiceParts.size() == 1
+                    && !ObjectUtils.isEmpty(voiceParts.get(0).getDescription()))
+                    && !"null".equals(voiceParts.get(0).getDescription())
+            ) {
                 System.out.println("hmm it's description");
                 sendAudio.setReplyMarkup(buttonsService.getShowTimestampsButton(followeePullTimestamps.getFolloweeId(), pullReplies));
             }
             String profilePicture = fileUtils.getProfilePicturePath(followeePullTimestamps.followeeId);
-            if (profilePicture != null)
-            {
+            if (profilePicture != null) {
                 sendAudio.setThumb(new InputFile(new File(profilePicture), "cover"));
             }
             System.out.println("Sending file " + localFile.getAbsoluteFileURL() + " for user " + userId + " from user " + followeePullTimestamps.followeeId);
@@ -721,9 +684,9 @@ public class UserServiceImpl implements org.example.service.UserService {
                     return vp;
                 },
                 args
-                ).collect(Collectors.toList());
-        logger.debug("getVoiceParts({}, {}, {}, {}), query: {}, args: {}, result: {}",
-                userId, followeeId, from ,to, query, args, result
+        ).collect(Collectors.toList());
+        log.debug("getVoiceParts({}, {}, {}, {}), query: {}, args: {}, result: {}",
+                userId, followeeId, from, to, query, args, result
         );
         return result;
     }
