@@ -7,6 +7,14 @@ EXPOSE 5005
 # Create a directory inside the container
 RUN mkdir -p /bewired/jar
 
+RUN mkdir /bewired/voices
+
+RUN mkdir /bewired/replies
+
+RUN mkdir /bewired/profile_pictures
+
+RUN mkdir /bewired/feedback
+
 # Copy the JAR file to the container
 COPY build/libs/demo-0.0.1-SNAPSHOT.jar /bewired/jar/demo-0.0.1-SNAPSHOT.jar
 
