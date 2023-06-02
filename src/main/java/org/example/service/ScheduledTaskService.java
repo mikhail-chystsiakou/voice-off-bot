@@ -1,11 +1,9 @@
 package org.example.service;
 
-import org.example.bot.MyTelegramBot;
+import lombok.extern.slf4j.Slf4j;
 import org.example.model.AnnouncementInfo;
 import org.example.service.impl.UserServiceImpl;
 import org.example.util.ExecuteFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,9 +15,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
+@Slf4j
 public class ScheduledTaskService
 {
-    private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
 
     @Autowired
     UserServiceImpl userService;
@@ -51,14 +49,14 @@ public class ScheduledTaskService
             }
         });
         userService.deleteNotifications();
-        logger.info("Scheduler: " + notifications);
+        log.info("Scheduler: " + notifications);
     }
 
     private void checkAnnouncements()
     {
         List<AnnouncementInfo> announcements = announcementsService.getAnnouncements();
 
-        logger.info("announcements: " + announcements);
+        log.info("announcements: " + announcements);
 
         announcements.forEach(a -> {
             announcementsService.runAnnouncementProcess(a);

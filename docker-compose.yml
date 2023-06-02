@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  tg-api:
+    image: sanchoys/tg-api:v1
+    volumes:
+      - shared-data:/bewired/tgapi
+  app:
+    image: sanchoys/bewired:latest
+    ports:
+      - "8184:80"
+      - "5005:5005"
+    depends_on:
+      - tg-api
+    volumes:
+      - shared-data:/bewired/tgapi
+    environment:
+      - TG_BOT_TOKEN=5930249915:AAEOus7CSs83tXSFbZiGTWM0_3G5y4hG2jI
+      - SERVER_PORT=80
+      - BOT_NAME=bewired_bot
+      - BOT_OWNER=1
+      - BOT_STORAGE_VOICE=/bewired/voices
+      - API_URL=http://tg-api/bot
+      - BOT_STORAGE_VOICE_LINUX=/bewired/voices
+      - BOT_STORAGE_PATH=/bewired
+      - BOT_STORAGE_PATH_VOICES=/voices
+      - BOT_STORAGE_PATH_PROFILEPICTURES=/profile_pictures
+      - BOT_STORAGE_PATH_TMP=/tmp
+      - BOT_STORAGE_PATH_FEEDBACKS=/feedbacks
+      - BOT_STORAGE_PATH_REPLIES=/replies
+      - SPRING_DATASOURCE_DRIVER-CLASS-NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/bewired_dev_alex
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL-AUTO=update
+      - SPRING_SERVLET_MULTIPART_MAX-FILE-SIZE=10MB
+      - HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+
+volumes:
+  shared-data:

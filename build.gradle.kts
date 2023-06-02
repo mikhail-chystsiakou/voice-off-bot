@@ -1,6 +1,5 @@
 
-val springVersion = "2.7.10-SNAPSHOT"
-var lombokVersion = "1.18.26"
+val lombokVersion = "1.18.26"
 
 repositories {
     mavenCentral()
@@ -27,11 +26,10 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
     testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
-    api("ch.qos.logback:logback-classic:1.4.6")
-    api("org.springframework.boot:spring-boot-starter-web:${springVersion}")
-    api("org.springframework.boot:spring-boot-starter-data-jpa:${springVersion}")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     api("io.springfox:springfox-boot-starter:3.0.0")
-    api("org.springframework.boot:spring-boot-starter-validation:${springVersion}")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     api("org.telegram:telegrambots:6.5.0")
     api("org.telegram:telegrambots-spring-boot-starter:6.5.0")
     api("org.postgresql:postgresql:42.3.8")
@@ -39,7 +37,7 @@ dependencies {
     implementation(kotlin("stdlib", "1.5.21"))
     api("io.github.microutils:kotlin-logging-jvm:2.0.11")
     api("org.jetbrains.kotlin:kotlin-reflect:1.8.21")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:${springVersion}")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.8.21")
 }
 
@@ -47,12 +45,15 @@ plugins {
     java
     kotlin("jvm") version "1.8.21"
     `maven-publish`
+    id("org.springframework.boot") version "2.7.10"
+    application
 }
+
+apply(plugin = "io.spring.dependency-management")
 
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
 description = "demo"
-java.sourceCompatibility = JavaVersion.VERSION_14
 
 publishing {
     publications.create<MavenPublication>("maven") {
@@ -61,8 +62,6 @@ publishing {
 }
 
 tasks.withType<JavaCompile>() {
-    sourceCompatibility = JavaVersion.VERSION_14.toString()
-    targetCompatibility = JavaVersion.VERSION_14.toString()
     options.encoding = "UTF-8"
 }
 
@@ -72,26 +71,16 @@ tasks.withType<Javadoc>() {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions {
-        jvmTarget = "14"
-    }
-}
-
-tasks.withType<Jar>() {
-    manifest {
-        attributes["Main-Class"] = "org.example.Application"
+        jvmTarget = "19"
     }
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(15))
+        languageVersion.set(JavaLanguageVersion.of(19))
     }
-    sourceCompatibility = org.gradle.api.JavaVersion.VERSION_14
-    targetCompatibility = org.gradle.api.JavaVersion.VERSION_14
 }
 
-task("displayJavaVersion") {
-    doLast {
-        println("Java version: ${System.getProperty("java.version")}")
-    }
+application {
+    mainClass.set("org.example.Application")
 }

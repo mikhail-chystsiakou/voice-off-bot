@@ -1,11 +1,10 @@
 package org.example.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.Constants;
 import org.example.enums.ButtonCommands;
 import org.example.model.UserInfo;
 import org.example.util.ThreadLocalMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -24,9 +23,9 @@ import static org.example.Constants.Settings.*;
 import static org.example.util.ThreadLocalMap.*;
 
 @Component
+@Slf4j
 public class ButtonsService
 {
-    private static final Logger logger = LoggerFactory.getLogger(ButtonsService.class);
     @Autowired
     ThreadLocalMap tlm;
 
@@ -59,7 +58,7 @@ public class ButtonsService
 
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
-            logger.warn("UserInfo is null!", new RuntimeException());
+            log.warn("UserInfo is null!", new RuntimeException());
         } else if (userInfo.getReplyModeFolloweeId() != null) {
             rows.clear();
             buttonForManagingSubscriptions.setText(ButtonCommands.DISABLE_REPLY_MODE.getDescription());
@@ -95,7 +94,7 @@ public class ButtonsService
         String feedbackCallback = SETTING_FEEDBACK_ALLOWED;
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
-            logger.warn("UserInfo is null", new RuntimeException());
+            log.warn("UserInfo is null", new RuntimeException());
         }
         if (userInfo != null && Boolean.TRUE.equals(userInfo.getFeedbackModeAllowed())) {
             feedbackModeButtonText = "Prohibit Feedback Mode \uD83E\uDD10";

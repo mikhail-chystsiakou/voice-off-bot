@@ -41,7 +41,7 @@ class UserAudio(
     @Column(name = "recording_timestamp")
     val recordingTimestamp: Timestamp,
 
-    val pullCount: Long? = null,
+    val pullCount: Long? = 0,
 
     val okMessageId: Long? = null,
 

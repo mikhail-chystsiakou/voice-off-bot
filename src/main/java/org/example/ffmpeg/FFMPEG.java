@@ -5,8 +5,6 @@ import org.example.config.Config;
 import org.example.enums.MessageType;
 import org.example.enums.Queries;
 import org.example.storage.FileStorage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -22,8 +20,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
+@Slf4j
 public class FFMPEG {
-    private static final Logger logger = LoggerFactory.getLogger(FFMPEG.class);
     private static final String COMMAND_PATTERN = "ffmpeg " +
             "-y -safe 0 -f concat -i {0} " +
             "-metadata artist=\"{1}\" -metadata title=\"{2}\" " +
@@ -47,15 +45,15 @@ public class FFMPEG {
         String osName = System.getProperty("os.name");
     }
 
-    public FFMPEGResult produceFiles(MessageType type, long userId, long from, Long replyFolloweeId) {
-        logger.debug("FFMPEG called with params: {}, {}, {}, {}", type, userId, from, replyFolloweeId);
+    public FFMPEGResult produceFiles(MessageType type, long userId, long from, long to, Long replyFolloweeId) {
+        log.debug("FFMPEG called with params: {}, {}, {}, {}, {}", type, userId, from, to, replyFolloweeId);
         String tempStoragePath = botConfig.getStoragePath() + botConfig.getTmpPath() + File.separator;
 
         VirtualFileInfo virtualFileInfo = loadVirtualFile(userId, from, System.currentTimeMillis());
         if (MessageType.REPLY.equals(type)) {
             virtualFileInfo.setReplyFolloweeId(replyFolloweeId);
         }
-        logger.debug("VirtualFileInfo: {}", virtualFileInfo);
+        log.debug("VirtualFileInfo: {}", virtualFileInfo);
 
         String outputFileSuffix = tempStoragePath + System.currentTimeMillis() + "_" + new Random().nextInt(9_999_999);
         String outputFile = outputFileSuffix + ".opus";
@@ -70,7 +68,7 @@ public class FFMPEG {
         String audioAuthor = getAudioAuthor(virtualFileInfo);
         String audioTitle = getAudioTitle(userId, type, virtualFileInfo);
         String command = MessageFormat.format(COMMAND_PATTERN, listFile, audioAuthor, audioTitle, outputFile);
-        logger.debug(command);
+        log.debug(command);
         try {
             execFFMPEG(command);
         } catch (IOException | InterruptedException e) {
@@ -158,16 +156,18 @@ public class FFMPEG {
             procCommand = "\"C:\\Program Files\\Git\\bin\\sh.exe\"";
         }
         String fullCommand = shellCommand + " \"" + commandLine + "\"";
-        logger.debug(fullCommand);
+        log.debug(fullCommand);
         ProcessBuilder pb = new ProcessBuilder(procCommand, "-c", commandLine);
         Process process = pb.start();
         int res = process.waitFor();
-        logger.debug("ffmpeg finished with result " + res);
+        log.debug("ffmpeg finished with result " + res);
     }
 
     private long createListFile(MessageType type, String listFilePath, List<FileInfo> virtualFiles) throws IOException {
+        log.info("createListFile: type {}, listFilePath {}, virtualFiles {}", type, listFilePath, virtualFiles);
         File listFile = new File(listFilePath);
-        logger.debug(listFilePath);
+        new File(listFilePath.substring(0, listFilePath.lastIndexOf("/"))).mkdirs();
+        log.debug(listFilePath);
         listFile.createNewFile();
         long lastFileRecordingTimestamp = 0;
         try (Writer bw = new BufferedWriter(new FileWriter(listFile))) {
@@ -191,7 +191,7 @@ public class FFMPEG {
                     file.getReplyModeFolloweeId()
                 );
                 String fileString = "file '" + filePath + "'\n";
-                logger.debug("Will concat file: " + filePath);
+                log.debug("Will concat file: " + filePath);
                 bw.write(fileString);
                 lastFileRecordingTimestamp = file.getRecordingTimestamp();
             }
@@ -249,13 +249,13 @@ public class FFMPEG {
                     Long replyToFolloweeId = rs.getLong("followee_id");
                     if (replyToFolloweeId == 0) replyToFolloweeId = null;
                     FileInfo fi = new FileInfo(userId, fileId, duration, recordingTimestamp, messageId, replyToFolloweeId);
-                    logger.debug("found file info: " + fi);
+                    log.debug("found file info: " + fi);
                     return fi;
                 },
                 args
         ).collect(Collectors.toList());
 
-        logger.debug("loading file infos, query: {}, args: {}, result: {}",
+        log.debug("loading file infos, query: {}, args: {}, result: {}",
                 query,
                 args,
                 parts
@@ -271,7 +271,7 @@ public class FFMPEG {
                 break;
             }
         }
-        logger.debug("Items after 1h filtration: {}", result);
+        log.debug("Items after 1h filtration: {}", result);
         return result;
     }
 

@@ -1,6 +1,7 @@
 package org.example.service.impl;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.example.config.DataSourceConfig;
 import org.example.dao.UserDAO;
 import org.example.dao.mappers.UserMapper;
@@ -24,8 +25,6 @@ import org.example.util.FileUtils;
 import org.example.util.NumberToEmoji;
 import org.example.util.ThreadLocalMap;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -440,7 +439,7 @@ public class UserServiceImpl implements UserService, FileUserService {
 
 
     public boolean isDataAvailable(Long userId) {
-        logger.debug("isDataAvailable({})", userId);
+        log.debug("isDataAvailable({})", userId);
         boolean repliesPresent = jdbcTemplate.queryForStream(
                 Queries.GET_REPLY_LAST_PULL_TIME.getValue(),
                 (rs, rn) -> {
@@ -452,7 +451,7 @@ public class UserServiceImpl implements UserService, FileUserService {
                 },
                 userId
         ).findAny().isPresent();
-        logger.debug("isDataAvailable({}) for reply: {}, query: {}", userId, repliesPresent, Queries.GET_REPLY_LAST_PULL_TIME.getValue());
+        log.debug("isDataAvailable({}) for reply: {}, query: {}", userId, repliesPresent, Queries.GET_REPLY_LAST_PULL_TIME.getValue());
 
         if (repliesPresent) return true;
 
@@ -467,7 +466,7 @@ public class UserServiceImpl implements UserService, FileUserService {
                 },
                 userId
         ).findAny().isPresent();
-        logger.debug("isDataAvailable({}) for voices: {}, query: {}", userId, voicesPresent, Queries.GET_LAST_PULL_TIME.getValue());
+        log.debug("isDataAvailable({}) for voices: {}, query: {}", userId, voicesPresent, Queries.GET_LAST_PULL_TIME.getValue());
 
         return voicesPresent;
     }
@@ -621,7 +620,7 @@ public class UserServiceImpl implements UserService, FileUserService {
                 duration += vp.duration;
                 sj.add(String.valueOf(vp.getMessageId()));
             }
-            logger.debug("total duration: {}", duration);
+            log.info("total duration: {}", duration);
             origMessageIds = sj.toString();
             tlm.put(KEY_ORIG_MESSAGE_IDS, origMessageIds);
             tlm.put(KEY_FOLLOWEE_ID, followeePullTimestamps.followeeId);
@@ -735,7 +734,7 @@ public class UserServiceImpl implements UserService, FileUserService {
                 },
                 args
                 ).collect(Collectors.toList());
-        logger.debug("getVoiceParts({}, {}, {}, {}), query: {}, args: {}, result: {}",
+        log.debug("getVoiceParts({}, {}, {}, {}), query: {}, args: {}, result: {}",
                 userId, followeeId, from ,to, query, args, result
         );
         return result;

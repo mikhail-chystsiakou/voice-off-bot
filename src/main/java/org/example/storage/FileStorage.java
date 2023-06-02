@@ -1,15 +1,14 @@
 package org.example.storage;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.config.BotConfig;
 import org.example.dto.FileDTO;
 import org.example.enums.MessageType;
 import org.example.enums.Queries;
-import org.example.exception.EntityNotFoundException;
+import org.example.model.UserAudio;
 import org.example.service.UserService;
 import org.example.util.ExecuteFunction;
 import org.example.util.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,14 +26,13 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.TimeZone;
-import java.util.UUID;
 
 /**
  * FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.oga"
  */
 @Component
+@Slf4j
 public class FileStorage {
-    private static final Logger logger = LoggerFactory.getLogger(FileStorage.class);
 
     private static final String FILENAME_DATE_PATTERN = "YYYY_MM_DD_HH24_MM_SS_SSS_{duration}_{fileId}.opus";
     public static final String DEFAULT_AUDIO_EXTENSION = "opus";
@@ -73,8 +71,7 @@ public class FileStorage {
     public void storeFile(
             long userId, String fileId, int duration,
             Integer messageId, String extension, MessageType messageType, Long replyModeFolloweeId, Integer replyModeMessageId) {
-        logger.debug("Storing file {} of type {} for user: {}", fileId, extension, userId);
-        System.out.println("Storing file {} of type {} for user: {}" + fileId + extension + userId + messageType);
+        log.debug("Storing file {} of type {} for user: {}", fileId, extension, userId);
         long recordingTimestamp = Instant.now().toEpochMilli();
         Timestamp sqlTimestamp = new Timestamp(recordingTimestamp);
 
@@ -120,15 +117,15 @@ public class FileStorage {
         System.out.println("File " + fileId + " stored to db");
     }
 
-    public void storeFile(MultipartFile multipartFile, FileDTO fileDTO) throws EntityNotFoundException, IOException {
+    public void storeFile(MultipartFile multipartFile, FileDTO fileDTO, UserAudio userAudio) throws IOException {
         File dest = new File(getFullFilePath(
-                fileDTO.getUserId(),
-                Instant.now().toEpochMilli(),
-                fileDTO.getDuration(),
-                UUID.randomUUID().toString(),
+                userAudio.getUserInfo().getUserId(),
+                userAudio.getRecordingTimestamp().getTime(),
+                userAudio.getDuration(),
+                userAudio.getFileId(),
                 DEFAULT_AUDIO_EXTENSION,
                 fileDTO.getMessageType(),
-                userService.getUserById(fileDTO.getUserId()).getReplyModeFolloweeId()
+                userAudio.getUserInfo().getReplyModeFolloweeId()
         ));
         if (!dest.exists() && !dest.mkdirs()) {
             throw new RuntimeException("Did not manage to create folders for voice");

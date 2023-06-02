@@ -13,6 +13,8 @@ import org.example.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
+
 import static org.example.constant.EntityName.SUBSCRIPTION;
 import static org.example.constant.ExceptionMessageConstant.ENTITY_BY_ID_IS_NOT_FOUND;
 import static org.example.constant.ExceptionMessageConstant.ENTITY_WITH_SUCH_ID_ALREADY_EXISTS;
@@ -72,6 +74,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .id(id)
                 .userInfo(follower)
                 .followee(followee)
+                .lastPull(new Timestamp(System.currentTimeMillis()))
                 .build();
     }
 }

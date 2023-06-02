@@ -27,7 +27,6 @@ open class FileServiceImpl(
     @Transactional
     override fun saveNewFile(multipartFile: MultipartFile, fileDTO: FileDTO) : UserAudio {
         val userInfo: UserInfo = fileUserService.getUserById(fileDTO.userId)
-        fileStorage.storeFile(multipartFile, fileDTO)
         val userAudio = UserAudio(
             fileId = UUID.randomUUID().toString(),
             userInfo = userInfo,
@@ -38,6 +37,7 @@ open class FileServiceImpl(
             replyToMessageId = userInfo.replyModeMessageId,
             fileOrderNumber = null
         )
+        fileStorage.storeFile(multipartFile, fileDTO, userAudio)
         val createdUserAudio = userAudioService.createUserAudio(userAudio)
         logger.info { "created userAudio $createdUserAudio" }
         return createdUserAudio
