@@ -20,8 +20,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.example.Constants.Settings.*;
-import static org.example.util.ThreadLocalMap.*;
+import static org.example.Constants.Settings.SETTING_FEEDBACK_ALLOWED;
+import static org.example.Constants.Settings.SETTING_FEEDBACK_PROHIBITED;
+import static org.example.util.ThreadLocalMap.KEY_USER_INFO;
 
 @Component
 public class ButtonsService
@@ -525,6 +526,38 @@ public class ButtonsService
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(noButton, yesButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup getUserSuggestionButton(String userName, long userId)
+    {
+        InlineKeyboardButton suggestButton = new InlineKeyboardButton();
+        suggestButton.setText("Subscribe to @" + userName);
+        suggestButton.setCallbackData("subscribe_" + userId);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(suggestButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public ReplyKeyboard getFollowBackButton(long userId, boolean isFollowBack)
+    {
+        ArrayList<InlineKeyboardButton> buttons = new ArrayList<>();
+        if (isFollowBack)
+        {
+            InlineKeyboardButton followBackButton = new InlineKeyboardButton();
+            followBackButton.setText("Follow back");
+            followBackButton.setCallbackData("subscribe_" + userId);
+            buttons.add(followBackButton);
+        }
+
+        InlineKeyboardButton unsubscribeButton = new InlineKeyboardButton();
+        unsubscribeButton.setText("Revoke");
+        unsubscribeButton.setCallbackData("unsubscribe_" + userId);
+        buttons.add(unsubscribeButton);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(buttons));
         return inlineKeyboardMarkup;
     }
 }

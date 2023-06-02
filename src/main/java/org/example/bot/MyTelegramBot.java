@@ -212,6 +212,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             {
                 updateHandler.getSettings(update.getCallbackQuery().getMessage());
             }
+            if (answer.startsWith("subscribe_")){
+                updateHandler.subscribeToFromSuggestion(update.getCallbackQuery().getMessage().getChatId(), answer, update.getCallbackQuery().getFrom());
+            }
+            if (answer.startsWith("unsubscribe_")){
+                updateHandler.removeSubscriberByRevoke(update.getCallbackQuery().getFrom(), update.getCallbackQuery().getMessage().getChatId(), answer);
+            }
         }
         log.trace("Finish processing message with id '{}'", update.getUpdateId());
     }

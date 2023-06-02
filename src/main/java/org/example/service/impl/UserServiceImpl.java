@@ -232,55 +232,13 @@ public class UserServiceImpl implements org.example.service.UserService {
         return sm;
     }
 
-    public int unsubscribe(Message message, UserInfo followee){
-        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
+    public int unsubscribe(long userId, UserInfo followee){
+        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), userId, followee.getUserId());
     }
 
-//    public SendMessage unsubscribe(Message message, String followeeName, ExecuteFunction execute) throws TelegramApiException {
-//        SendMessage sm = new SendMessage();
-//        sm.setChatId(message.getChatId());
-//        if (followeeName.startsWith("@")) {
-//            followeeName = followeeName.substring(1);
-//        }
-//        UserInfo followee = loadUserInfoByName(followeeName);
-//        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), message.getFrom().getId(), followee.getUserId());
-//        if (updatedRows > 0) {
-//            sm.setText("Ok, unsubscribed");
-//
-//            SendMessage unsubscribeNotification = new SendMessage();
-//            unsubscribeNotification.setChatId(followee.getChatId());
-//            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " unsubscribed");
-//            execute.execute(unsubscribeNotification);
-//        } else {
-//            sm.setText("Nothing changed, are you really subscribed to @" + followeeName + "?");
-//        }
-//        return sm;
-//    }
-
-    public int removeFollower(Message message, UserInfo follower) throws TelegramApiException {
-        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
+    public int removeFollower(long userId, UserInfo follower) throws TelegramApiException {
+        return jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), userId);
     }
-
-//    public SendMessage removeFollower(Message message, String followerName, ExecuteFunction execute) throws TelegramApiException {
-//        SendMessage sm = new SendMessage();
-//        sm.setChatId(message.getChatId());
-//        if (followerName.startsWith("@")) {
-//            followerName = followerName.substring(1);
-//        }
-//        UserInfo follower = loadUserInfoByName(followerName);
-//        int updatedRows = jdbcTemplate.update(FollowQueries.UNSUBSCRIBE.getValue(), follower.getUserId(), message.getFrom().getId());
-//        if (updatedRows > 0) {
-//            sm.setText("Ok, user will no longer receive your updates");
-//
-//            SendMessage unsubscribeNotification = new SendMessage();
-//            unsubscribeNotification.setChatId(follower.getChatId());
-//            unsubscribeNotification.setText("@" + message.getFrom().getUserName() + " revoked your subscription");
-//            execute.execute(unsubscribeNotification);
-//        } else {
-//            sm.setText("Nothing changed, are you really subscribed to @" + followerName + "?");
-//        }
-//        return sm;
-//    }
 
     public SendMessage removeUser(Long userId, Long chatId) {
         SendMessage sm = new SendMessage();
@@ -754,6 +712,16 @@ public class UserServiceImpl implements org.example.service.UserService {
 
         public Timestamp getRecordingDate() {
             return recordingDate;
+        }
+    }
+
+    public Long getUserSuggestion(long userId)
+    {
+        try{
+            return jdbcTemplate.queryForObject(GET_USER_SUGGESTION.getValue(), new Object[]{userId, userId}, Long.class);
+        }
+        catch (EmptyResultDataAccessException  e){
+            return null;
         }
     }
 }
