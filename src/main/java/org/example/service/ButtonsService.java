@@ -1,11 +1,10 @@
 package org.example.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.Constants;
 import org.example.enums.ButtonCommands;
 import org.example.model.UserInfo;
 import org.example.util.ThreadLocalMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -20,13 +19,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.example.Constants.Settings.*;
-import static org.example.util.ThreadLocalMap.*;
+import static org.example.Constants.Settings.SETTING_FEEDBACK_ALLOWED;
+import static org.example.Constants.Settings.SETTING_FEEDBACK_PROHIBITED;
+import static org.example.util.ThreadLocalMap.KEY_USER_INFO;
 
 @Component
+@Slf4j
 public class ButtonsService
 {
-    private static final Logger logger = LoggerFactory.getLogger(ButtonsService.class);
     @Autowired
     ThreadLocalMap tlm;
 
@@ -59,14 +59,14 @@ public class ButtonsService
 
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
-            logger.warn("UserInfo is null!", new RuntimeException());
+            log.warn("UserInfo is null!", new RuntimeException());
         } else if (userInfo.getReplyModeFolloweeId() != null) {
             rows.clear();
             buttonForManagingSubscriptions.setText(ButtonCommands.DISABLE_REPLY_MODE.getDescription());
             rows.add(new KeyboardRow(Arrays.asList(buttonForManagingSubscriptions)));
-        } else if (userInfo.isFeedbackModeAllowed()){
+        } else if (Boolean.TRUE.equals(userInfo.getFeedbackModeAllowed())){
             KeyboardButton feedbackButton = new KeyboardButton();
-            if (userInfo.isFeedbackModeEnabled()) {
+            if (Boolean.TRUE.equals(userInfo.getFeedbackModeEnabled())) {
                 feedbackButton.setText(ButtonCommands.DISABLE_FEEDBACK_MODE.getDescription());
                 rows.clear();
             } else {
@@ -95,9 +95,9 @@ public class ButtonsService
         String feedbackCallback = SETTING_FEEDBACK_ALLOWED;
         UserInfo userInfo = tlm.get(KEY_USER_INFO);
         if (userInfo == null) {
-            logger.warn("UserInfo is null", new RuntimeException());
+            log.warn("UserInfo is null", new RuntimeException());
         }
-        if (userInfo != null && userInfo.isFeedbackModeAllowed()) {
+        if (userInfo != null && Boolean.TRUE.equals(userInfo.getFeedbackModeAllowed())) {
             feedbackModeButtonText = "Prohibit Feedback Mode \uD83E\uDD10";
             feedbackCallback = SETTING_FEEDBACK_PROHIBITED;
         }
@@ -525,6 +525,38 @@ public class ButtonsService
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(noButton, yesButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup getUserSuggestionButton(String userName, long userId)
+    {
+        InlineKeyboardButton suggestButton = new InlineKeyboardButton();
+        suggestButton.setText("Subscribe to @" + userName);
+        suggestButton.setCallbackData("subscribe_" + userId);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(Arrays.asList(suggestButton)));
+        return inlineKeyboardMarkup;
+    }
+
+    public ReplyKeyboard getFollowBackButton(long userId, boolean isFollowBack)
+    {
+        ArrayList<InlineKeyboardButton> buttons = new ArrayList<>();
+        if (isFollowBack)
+        {
+            InlineKeyboardButton followBackButton = new InlineKeyboardButton();
+            followBackButton.setText("Follow back");
+            followBackButton.setCallbackData("subscribe_" + userId);
+            buttons.add(followBackButton);
+        }
+
+        InlineKeyboardButton unsubscribeButton = new InlineKeyboardButton();
+        unsubscribeButton.setText("Revoke");
+        unsubscribeButton.setCallbackData("unsubscribe_" + userId);
+        buttons.add(unsubscribeButton);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(Arrays.asList(buttons));
         return inlineKeyboardMarkup;
     }
 }

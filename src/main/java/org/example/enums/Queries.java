@@ -146,7 +146,19 @@ public enum Queries
                                                 "from pull_stats\n" +
                                                 "where pull_timestamp <= ?\n" +
                                                 "and user_id = ? and followee_id = ?\n" +
-                                                "order by last_pull_timestamp desc limit 1");
+                                                "order by last_pull_timestamp desc limit 1"),
+    GET_USER_SUGGESTION("select u.user_id \n" +
+                            "from users u\n" +
+                            "where u.user_id not in (\n" +
+                            "\tselect us.followee_id \n" +
+                            "\tfrom user_subscriptions us \n" +
+                            "\twhere us.user_id = ?)\n" +
+                            "and u.user_id != ?\n" +
+                            "and exists (\n" +
+                            "\tselect 1 \n" +
+                            "\tfrom user_audios ua \n" +
+                            "\twhere ua.user_id = u.user_id \n" +
+                            "\tand recording_timestamp > current_timestamp - INTERVAL '5 DAYS') limit 1");
 
     String value;
 

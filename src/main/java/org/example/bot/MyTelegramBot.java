@@ -11,8 +11,6 @@ import org.example.service.UpdateHandler;
 import org.example.service.impl.UserServiceImpl;
 import org.example.util.PullProcessingSet;
 import org.example.util.ThreadLocalMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -103,7 +101,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             if (update.hasEditedMessage()) {
                 updateHandler.storeMessageDescription(message, true);
             } else if (message.hasVoice()){
-                if (userInfo.isFeedbackModeEnabled()) {
+                if (Boolean.TRUE.equals(userInfo.getFeedbackModeEnabled())) {
                     updateHandler.storeFeedback(message);
                 } else {
                     updateHandler.handleVoiceMessage(message);
@@ -160,7 +158,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     updateHandler.unsupportedTextInput(message);
                 }
             } else {
-                if (userInfo.isFeedbackModeEnabled()) {
+                if (Boolean.TRUE.equals(userInfo.getFeedbackModeEnabled())) {
                     updateHandler.storeFeedback(message);
                 }
             }
@@ -211,6 +209,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             if (answer.equals(ButtonCommands.RETURN_TO_MAIN_MENU.getDescription()))
             {
                 updateHandler.getSettings(update.getCallbackQuery().getMessage());
+            }
+            if (answer.startsWith("subscribe_")){
+                updateHandler.subscribeToFromSuggestion(update.getCallbackQuery().getMessage().getChatId(), answer, update.getCallbackQuery().getFrom());
+            }
+            if (answer.startsWith("unsubscribe_")){
+                updateHandler.removeSubscriberByRevoke(update.getCallbackQuery().getFrom(), update.getCallbackQuery().getMessage().getChatId(), answer);
             }
         }
         log.trace("Finish processing message with id '{}'", update.getUpdateId());
