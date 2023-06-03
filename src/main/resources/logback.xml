@@ -5,11 +5,11 @@
         </encoder>
     </appender>
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/mnt/bewired/dev_mich/bewired/log.log</file>
+        <file>/mnt/bewired/prod/bewired/log.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>/mnt/bewired/dev_mich/bewired/log-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>100MB</maxFileSize>
-            <maxHistory>7</maxHistory>
+            <maxHistory>31</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
