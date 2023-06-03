@@ -1,5 +1,6 @@
 package org.example.service;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Constants;
 import org.example.config.BotConfig;
@@ -478,6 +479,7 @@ public class UpdateHandler {
         pullProcessingSet.finishProcessingForUser(userId);
     }
 
+    @SneakyThrows
     private void provideSubscriptionSuggestion(long userId, long chatId) throws TelegramApiException
     {
         List<String> suggestions = Arrays.asList("Why not subscribe to @%s updates for daily inspiration?\uD83E\uDD14",

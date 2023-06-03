@@ -1,5 +1,6 @@
 package org.example.model
 
+import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id

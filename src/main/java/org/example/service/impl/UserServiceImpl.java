@@ -111,14 +111,16 @@ public class UserServiceImpl implements UserService, FileUserService {
     }
 
     @Override
-    public UserInfo getUserById(Long userId) throws EntityNotFoundException {
+    public UserInfo getUserById(Long userId) throws EntityNotFoundException
+    {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format(ENTITY_BY_ID_IS_NOT_FOUND, "User", userId)));
     }
 
     @NotNull
     @Override
-    public UserInfo getUserById(long userId) throws EntityNotFoundException {
+    public UserInfo getUserById(long userId) throws EntityNotFoundException
+    {
         return getUserById(Long.valueOf(userId));
     }
 
