@@ -1,12 +1,12 @@
 package org.example.service.impl;
 
-import org.example.config.DataSourceConfig;
 import org.example.exception.EntityAlreadyExistsException;
 import org.example.exception.EntityNotFoundException;
 import org.example.model.Subscription;
 import org.example.model.SubscriptionId;
 import org.example.model.UserInfo;
 import org.example.repository.SubscriptionRepository;
+import org.example.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,18 +14,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.sql.Timestamp;
+import java.util.Optional;
+
 import static org.example.constant.ExceptionMessageConstant.ENTITY_BY_ID_IS_NOT_FOUND;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionServiceImplTest {
-
-    @Mock
-    private DataSourceConfig dataSourceConfig;
 
     @Mock
     private SubscriptionRepository subscriptionRepository;
@@ -34,7 +34,7 @@ class SubscriptionServiceImplTest {
     private SubscriptionServiceImpl subscriptionService;
 
     @Mock
-    private UserServiceImpl userService;
+    private UserService userService;
 
     private UserInfo user1;
 
@@ -53,10 +53,10 @@ class SubscriptionServiceImplTest {
         user1.setFeedbackModeEnabled(true);
 
         user2 = new UserInfo();
-        user2.setUserId(1L);
-        user2.setChatId("1");
-        user2.setUsername("user1");
-        user2.setFirstName("John");
+        user2.setUserId(2L);
+        user2.setChatId("2");
+        user2.setUsername("user2");
+        user2.setFirstName("Johny");
         user2.setLastName("Doe");
         user2.setTimezone(0);
         user2.setFeedbackModeAllowed(true);
@@ -65,8 +65,8 @@ class SubscriptionServiceImplTest {
 
     @Test
     public void subscriptionCanBeSaved() throws EntityAlreadyExistsException, EntityNotFoundException {
-        when(userService.getUserById(user1.getUserId())).thenReturn(user1);
-        when(userService.getUserById(user2.getUserId())).thenReturn(user2);
+        when(userService.getUserById(eq(user1.getUserId()))).thenReturn(user1);
+        when(userService.getUserById(eq(user2.getUserId()))).thenReturn(user2);
 
         Subscription expectedSubscription = Subscription.builder()
                 .id(SubscriptionId.builder()
@@ -75,20 +75,21 @@ class SubscriptionServiceImplTest {
                         .build())
                 .userInfo(user1)
                 .followee(user2)
+                .lastPull(new Timestamp(System.currentTimeMillis()))
                 .build();
 
-
-        when(subscriptionRepository.save(expectedSubscription)).thenReturn(expectedSubscription);
+        when(subscriptionRepository.findById(expectedSubscription.getId())).thenReturn(Optional.empty());
+        when(subscriptionRepository.save(any())).thenReturn(expectedSubscription);
 
         Subscription subscriptionFromDb = subscriptionService.createSubscription(user1.getUserId(), user2.getUserId());
-        verify(subscriptionRepository, times(1)).save(subscriptionFromDb);
+        assertEquals(expectedSubscription, subscriptionFromDb);
     }
 
     @Test
     public void exceptionIsThrownWhenUserNotFound() throws EntityNotFoundException {
         EntityNotFoundException expectedException =
                 new EntityNotFoundException(String.format(ENTITY_BY_ID_IS_NOT_FOUND, "User", user1.getUserId()));
-        when(userService.getUserById(1L)).thenThrow(expectedException);
+        when(userService.getUserById(eq(user1.getUserId()))).thenThrow(expectedException);
 
         EntityNotFoundException exception = assertThrows(
                 EntityNotFoundException.class,
