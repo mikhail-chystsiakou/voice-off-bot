@@ -67,7 +67,7 @@ public class FFMPEG {
             throw new RuntimeException(e);
         }
         String audioAuthor = getAudioAuthor(virtualFileInfo);
-        String audioTitle = getAudioTitle(userId, type, virtualFileInfo);
+        String audioTitle = getAudioTitle(type, virtualFileInfo);
         String command = MessageFormat.format(COMMAND_PATTERN, listFile, audioAuthor, audioTitle, outputFile);
         log.debug(command);
         try {
@@ -79,14 +79,18 @@ public class FFMPEG {
         return new FFMPEGResult(outputFile, listFile, audioAuthor, audioTitle, lastFileRecordingTimestamp);
     }
 
-    private long getUserTo(long userId)
+    private long getUserTo(long userReplyFrom, long userReplyTo, boolean isReply)
     {
-        return Objects.requireNonNull(jdbcTemplate.queryForObject(Queries.GET_USER_AUDIO_TO.getValue(), new Object[]{userId}, Timestamp.class)).getTime();
+        String query = isReply ? Queries.GET_USER_AUDIO_TO_FOR_REPLY.getValue() : Queries.GET_USER_AUDIO_TO.getValue();
+        Object[] params = isReply ? new Object[]{userReplyFrom, userReplyTo} : new Object[]{userReplyFrom};
+        return Objects.requireNonNull(jdbcTemplate.queryForObject(query, params, Timestamp.class)).getTime();
     }
 
-    private long getUserFrom(long userId, long from)
+    private long getUserFrom(long userReplyFrom, long userReplyTo, long from, boolean isReply)
     {
-        return Objects.requireNonNull(jdbcTemplate.queryForObject(Queries.GET_USER_AUDIO_FROM.getValue(), new Object[]{userId, new Timestamp(from)}, Timestamp.class)).getTime();
+        String query = isReply ? Queries.GET_USER_AUDIO_FROM_FOR_REPLY.getValue() : Queries.GET_USER_AUDIO_FROM.getValue();
+        Object[] params = isReply ? new Object[]{userReplyFrom, new Timestamp(from), userReplyTo} : new Object[]{userReplyFrom, new Timestamp(from)};
+        return Objects.requireNonNull(jdbcTemplate.queryForObject(query, params, Timestamp.class)).getTime();
     }
 
     private String getAudioAuthor(VirtualFileInfo vfi) {
@@ -106,12 +110,15 @@ public class FFMPEG {
         return audioAuthor;
     }
 
-    private String getAudioTitle(long userId, MessageType type, VirtualFileInfo vfi) {
+    private String getAudioTitle(MessageType type, VirtualFileInfo vfi) {
+        long userReplyFrom = vfi.getUserId();
+        long userReplyTo = MessageType.REPLY.equals(type) ? vfi.getReplyFolloweeId() : 0;
+
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
 
-        long from = getUserFrom(userId, vfi.getDateFrom());
-        long to = getUserTo(userId);
+        long from = getUserFrom(userReplyFrom, userReplyTo, vfi.getDateFrom(), MessageType.REPLY.equals(type));
+        long to = getUserTo(userReplyFrom, userReplyTo, MessageType.REPLY.equals(type));
 
         String fromStr = sdf.format(new Date(from));
         String toStr = sdf.format(new Date(to));

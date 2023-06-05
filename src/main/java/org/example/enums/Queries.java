@@ -140,8 +140,18 @@ public enum Queries
     GET_USER_AUDIO_FROM("select min(recording_timestamp) from user_audios \n" +
                             "where user_id = ? \n" +
                             "and recording_timestamp > ?\n"),
+    GET_USER_AUDIO_FROM_FOR_REPLY("select min(ua.recording_timestamp) from user_audios ua, pull_messages pm\n" +
+                                      "                            where ua.user_id = ?\n" +
+                                      " and pm.pull_message_id = ua.reply_to_message_id\n" +
+                                      "                            and ua.recording_timestamp > ?\n" +
+                                      " and pm.followee_id = ?"),
     GET_USER_AUDIO_TO("select max(recording_timestamp) from user_audios \n" +
                           "where user_id = ?"),
+    GET_USER_AUDIO_TO_FOR_REPLY("select max(ua.recording_timestamp)\n" +
+                                    "from user_audios ua, pull_messages pm\n" +
+                                    "where ua.user_id = ?\n" +
+                                    "and ua.reply_to_message_id = pm.pull_message_id\n" +
+                                    "and pm.followee_id = ?"),
     GET_PREVIOUS_PULL_TIMESTAMP_BY_FOLLOWEE("select followee_id, pull_timestamp, last_pull_timestamp \n" +
                                                 "from pull_stats\n" +
                                                 "where pull_timestamp <= ?\n" +
