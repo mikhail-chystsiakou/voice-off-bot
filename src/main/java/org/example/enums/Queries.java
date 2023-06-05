@@ -160,15 +160,17 @@ public enum Queries
     GET_USER_SUGGESTION("select u.user_id \n" +
                             "from users u\n" +
                             "where u.user_id not in (\n" +
-                            "\tselect us.followee_id \n" +
-                            "\tfrom user_subscriptions us \n" +
-                            "\twhere us.user_id = ?)\n" +
+                            "select us.followee_id \n" +
+                            "from user_subscriptions us \n" +
+                            "where us.user_id = ?)\n" +
                             "and u.user_id != ?\n" +
                             "and exists (\n" +
-                            "\tselect 1 \n" +
-                            "\tfrom user_audios ua \n" +
-                            "\twhere ua.user_id = u.user_id \n" +
-                            "\tand recording_timestamp > current_timestamp - INTERVAL '5 DAYS') limit 1");
+                            "select 1 \n" +
+                            "from user_audios ua \n" +
+                            "where ua.user_id = u.user_id \n" +
+                            "and recording_timestamp > current_timestamp - INTERVAL '5 DAYS') \n" +
+                            "and not exists (select 1 from follow_requests fr where fr.user_id = ? and followee_id = u.user_id)\n" +
+                            "limit 1");
 
     String value;
 

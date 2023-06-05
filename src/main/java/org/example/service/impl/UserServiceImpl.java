@@ -683,7 +683,7 @@ public class UserServiceImpl implements UserService, FileUserService {
     public Long getUserSuggestion(long userId)
     {
         try{
-            return jdbcTemplate.queryForObject(GET_USER_SUGGESTION.getValue(), new Object[]{userId, userId}, Long.class);
+            return jdbcTemplate.queryForObject(GET_USER_SUGGESTION.getValue(), new Object[]{userId, userId, userId}, Long.class);
         }
         catch (EmptyResultDataAccessException  e){
             return null;
